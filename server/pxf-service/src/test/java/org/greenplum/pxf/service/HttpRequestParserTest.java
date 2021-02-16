@@ -31,6 +31,7 @@ import org.greenplum.pxf.api.utilities.FragmentMetadata;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -58,9 +59,12 @@ public class HttpRequestParserTest {
     private HttpRequestParser parser;
     private MultiValueMap<String, String> parameters;
     private PluginConf mockPluginConf;
+    private BuildProperties mockBuildProperties;
 
     @BeforeEach
     public void setUp() {
+        mockBuildProperties = mock(BuildProperties.class);
+        when(mockBuildProperties.getVersion()).thenReturn("1.2.3");
         mockPluginConf = mock(PluginConf.class);
 
         parameters = new LinkedMultiValueMap<>();
@@ -72,6 +76,8 @@ public class HttpRequestParserTest {
         parameters.add("X-GP-URL-HOST", "my://bags");
         parameters.add("X-GP-URL-PORT", "-8020");
         parameters.add("X-GP-ATTRS", "-1");
+        parameters.add("X-GP-PXF-VERSION", "1.2.3");
+        parameters.add("X-GP-MIN-PXF-VERSION", "1.0.0");
         parameters.add("X-GP-OPTIONS-FRAGMENTER", "we");
         parameters.add("X-GP-OPTIONS-ACCESSOR", "are");
         parameters.add("X-GP-OPTIONS-RESOLVER", "packed");
@@ -86,6 +92,7 @@ public class HttpRequestParserTest {
         parameters.add("X-GP-DATABASE-ENCODING", "UTF8");
 
         parser = new HttpRequestParser(mockPluginConf, new CharsetUtils());
+        parser.setBuildProperties(mockBuildProperties);
     }
 
     @AfterEach
@@ -621,6 +628,42 @@ public class HttpRequestParserTest {
         e = assertThrows(IllegalArgumentException.class,
                 () -> parser.parseRequest(parameters, RequestType.WRITE_BRIDGE));
         assertEquals("Property RESOLVER has no value in the current request", e.getMessage());
+    }
+
+    @Test
+    public void testMisingPxfVersion() {
+        parameters.remove("X-GP-PXF-VERSION");
+        Exception e = assertThrows(IllegalArgumentException.class,
+                () -> parser.parseRequest(parameters, RequestType.READ_BRIDGE));
+        assertEquals("Property PXF-VERSION has no value in the current request. Ensure PXF extension has been updated to the latest version.", e.getMessage());
+    }
+
+    @Test
+    public void testMisingMinPxfVersion() {
+        parameters.remove("X-GP-MIN-PXF-VERSION");
+        Exception e = assertThrows(IllegalArgumentException.class,
+                () -> parser.parseRequest(parameters, RequestType.READ_BRIDGE));
+        assertEquals("Property MIN-PXF-VERSION has no value in the current request. Ensure PXF extension has been updated to the latest version.", e.getMessage());
+    }
+
+    @Test
+    public void testExtensionMinVersionLargerThanServerVersion() {
+        parameters.set("X-GP-MIN-PXF-VERSION", "1.19.0");
+        when(mockBuildProperties.getVersion()).thenReturn("1.2.0");
+
+        Exception e = assertThrows(IllegalArgumentException.class,
+                () -> parser.parseRequest(parameters, RequestType.READ_BRIDGE));
+        assertEquals("PXF extension requested minimum PXF server version '1.19.0'; PXF server version is '1.2.0'. You may need to update your PXF server.", e.getMessage());
+    }
+
+    @Test
+    public void testVersionsNotMatchButSatisfiesMinVersion() {
+        parameters.set("X-GP-MIN-PXF-VERSION", "1.0.0");
+        when(mockBuildProperties.getVersion()).thenReturn("1.1.0");
+
+        RequestContext context = parser.parseRequest(parameters, RequestType.READ_BRIDGE);
+        assertEquals("1.2.3", context.getExtensionVersion());
+        assertEquals("1.0.0", context.getMinServerVersion());
     }
 
     public static class TestHandler implements ProtocolHandler {

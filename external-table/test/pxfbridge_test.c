@@ -120,7 +120,7 @@ test_gpbridge_import_start(void **state)
 	initStringInfo(&expected_uri);
 	appendStringInfo(&expected_uri,
 					 "http://%s/%s/%s/Bridge/",
-					 AUTHORITY, PXF_SERVICE_PREFIX, PXF_VERSION);
+					 AUTHORITY, PXF_SERVICE_PREFIX, PXF_PROTOCOL_VERSION);
 	assert_string_equal(context->uri.data, expected_uri.data);
 	assert_int_equal(context->churl_headers, headers);
 	assert_int_equal(context->churl_handle, handle);
@@ -318,7 +318,7 @@ test_gpbridge_read_first_fragment_buffer(void **state)
 	initStringInfo(&expected_uri);
 	appendStringInfo(&expected_uri,
 					"http://%s/%s/%s/Bridge/",
-					AUTHORITY, PXF_SERVICE_PREFIX, PXF_VERSION);
+					AUTHORITY, PXF_SERVICE_PREFIX, PXF_PROTOCOL_VERSION);
 	assert_string_equal(context->uri.data, expected_uri.data);
 	assert_int_equal(context->churl_headers, headers);
 	assert_int_equal(context->churl_handle, handle);
