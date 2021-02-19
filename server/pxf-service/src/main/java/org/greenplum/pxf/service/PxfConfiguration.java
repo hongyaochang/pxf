@@ -111,62 +111,41 @@ public class PxfConfiguration implements WebMvcConfigurer {
         return builder.build(PxfThreadPoolTaskExecutor.class);
     }
 
+    /**
+     * Custom {@link WebMvcTagsContributor} that adds PXF specific tags to metrics for Spring MVC (REST endpoints)
+     *
+     * @return the {@link WebMvcTagsContributor} instance
+     */
     @Bean
     public WebMvcTagsContributor webMvcTagsContributor() {
-        return new PxfWebMvcTagsProvider();
-    }
-
-    public static class PxfWebMvcTagsProvider implements WebMvcTagsContributor {
-
-        @Override
-        public Iterable<Tag> getTags(HttpServletRequest request, HttpServletResponse response, Object handler, Throwable exception) {
-            Tags tags = Tags.empty();
-            tags = addTagFromHttpHeader("user", "X-GP-USER", tags, request);
-            tags = addTagFromHttpHeader("segmentID", "X-GP-SEGMENT-ID", tags, request);
-            tags = addTagFromHttpHeader("profile", "X-GP-OPTIONS-PROFILE", tags, request);
-            tags = addTagFromHttpHeader("server", "X-GP-OPTIONS-SERVER", tags, request);
-            return tags;
-        }
-
-        @Override
-        public Iterable<Tag> getLongRequestTags(HttpServletRequest request, Object handler) {
-            return new ArrayList<>();
-        }
-
-        private Tags addTagFromHttpHeader(String tag, String header, Tags tags, HttpServletRequest request) {
-            String headerValue = request.getHeader(header);
-            if (StringUtils.isNotBlank(headerValue)) {
-                tags = tags.and(Tag.of(tag, headerValue));
+        return new WebMvcTagsContributor() {
+            @Override
+            public Iterable<Tag> getTags(HttpServletRequest request, HttpServletResponse response, Object handler, Throwable exception) {
+                Tags tags = Tags.empty();
+                // add tags only if the request is for PXF service endpoints (not actuator ones)
+                String user = request.getHeader("X-GP-USER");
+                if (StringUtils.isNotBlank(user)) {
+                    tags = tags.and("user", user);
+                    tags = addTag("segmentID", request.getHeader("X-GP-SEGMENT-ID"), tags, null);
+                    tags = addTag("profile", request.getHeader("X-GP-OPTIONS-PROFILE"), tags, null);
+                    tags = addTag("server", request.getHeader("X-GP-OPTIONS-SERVER"), tags, "default");
+                }
+                return tags;
             }
-            return tags;
-        }
+
+            @Override
+            public Iterable<Tag> getLongRequestTags(HttpServletRequest request, Object handler) {
+                return new ArrayList<>();
+            }
+
+            private Tags addTag(String tag, String value, Tags tags, String defaultValue) {
+                value = StringUtils.defaultIfBlank(value, defaultValue);
+                if (StringUtils.isNotBlank(value)) {
+                    tags = tags.and(tag, value);
+                }
+                return tags;
+            }
+        };
     }
 
-//    @Bean
-//    public WebMvcTagsContributor webMvcTagsContributor() {
-//        return new WebMvcTagsContributor() {
-//
-//            @Override
-//            public Iterable<Tag> getTags(HttpServletRequest request, HttpServletResponse response, Object handler, Throwable exception) {
-//                Tags tags = Tags.empty();
-//                addTagFromHttpHeader("user","X-GP-USER", tags, request);
-//                addTagFromHttpHeader("segmentID", "X-GP-SEGMENT-ID", tags, request);
-//                addTagFromHttpHeader("profile", "X-GP-OPTIONS-PROFILE", tags, request);
-//                addTagFromHttpHeader("server", "X-GP-OPTIONS-SERVER", tags, request);
-//                return tags;
-//            }
-//
-//            @Override
-//            public Iterable<Tag> getLongRequestTags(HttpServletRequest request, Object handler) {
-//                return null;
-//            }
-//
-//            private void addTagFromHttpHeader(String tag, String header, Tags tags, HttpServletRequest request) {
-//                String headerValue = request.getHeader(header);
-//                if (StringUtils.isNotBlank(headerValue)) {
-//                    tags.and(Tag.of(tag, headerValue));
-//                }
-//            }
-//        };
-//    }
 }
