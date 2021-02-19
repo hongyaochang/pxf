@@ -42,27 +42,19 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
 
     private final CharsetUtils charsetUtils;
     private final PluginConf pluginConf;
-    private BuildProperties buildProperties;
-
-    /**
-     * Sets the {@link BuildProperties} object
-     *
-     * @param buildProperties the build properties object
-     */
-    @Autowired
-    public void setBuildProperties(BuildProperties buildProperties) {
-        this.buildProperties = buildProperties;
-    }
+    private final BuildProperties buildProperties;
 
     /**
      * Create a new instance of the HttpRequestParser with the given PluginConf
      *
      * @param pluginConf   the plugin conf
      * @param charsetUtils utilities for Charset
+     * @param buildProperties the build properties object
      */
-    public HttpRequestParser(PluginConf pluginConf, CharsetUtils charsetUtils) {
+    public HttpRequestParser(PluginConf pluginConf, CharsetUtils charsetUtils, BuildProperties buildProperties) {
         this.pluginConf = pluginConf;
         this.charsetUtils = charsetUtils;
+        this.buildProperties = buildProperties;
     }
 
     @Override
