@@ -295,14 +295,9 @@ public class RequestContext {
     private Charset databaseEncoding;
 
     /**
-     * The version of the postgres extension client
+     * The version of the PXF API the postgres extension implements
      */
-    private String extensionVersion;
-
-    /**
-     * The minimum server version compatible with the postgres extension client
-     */
-    private String minServerVersion;
+    private String extensionApiVersion;
 
     /**
      * Additional Configuration Properties to be added to configuration for

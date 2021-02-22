@@ -11,7 +11,6 @@ import org.greenplum.pxf.api.utilities.EnumAggregationType;
 import org.greenplum.pxf.api.utilities.Utilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MultiValueMap;
@@ -71,8 +70,7 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
 
         // fill the Request-scoped RequestContext with parsed values
         try {
-            context.setExtensionVersion(params.removeProperty("PXF-VERSION"));
-            context.setMinServerVersion(params.removeProperty("MIN-PXF-VERSION"));
+            context.setExtensionApiVersion(params.removeProperty("PXF-API-VERSION"));
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException(String.format("%s. Ensure PXF extension has been updated to the latest version.", e.getMessage()));
         }
@@ -233,18 +231,13 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
      * @param context key-value map of HTTP headers from request
      */
     private void checkVersionHeaders(RequestContext context) {
-        ComparableVersion serverVersion = new ComparableVersion(buildProperties.getVersion());
-        ComparableVersion pxfVersion = new ComparableVersion(context.getExtensionVersion());
-        ComparableVersion minPxfVersion = new ComparableVersion(context.getMinServerVersion());
+        ComparableVersion serverApiVersion = new ComparableVersion(buildProperties.getVersion());
+        ComparableVersion extensionApiVersion = new ComparableVersion(context.getExtensionApiVersion());
 
-        if (pxfVersion.compareTo(serverVersion) != 0) {
-            LOG.warn(String.format("request from PXF extension with version '%s' but PXF server is version '%s'", pxfVersion, serverVersion));
-        }
+        LOG.info("extension using API version: {}", extensionApiVersion);
 
-        if (minPxfVersion.compareTo(serverVersion) == 1) {
-            String errMsg = String.format("PXF extension requested minimum PXF server version '%s'; PXF server version is '%s'. You may need to update your PXF server.", minPxfVersion, serverVersion);
-            LOG.error(errMsg);
-            throw new IllegalArgumentException(errMsg);
+        if (extensionApiVersion.compareTo(serverApiVersion) != 0) {
+            throw new IllegalArgumentException("Incompatible request from PXF extension; please update your PXF extension.");
         }
     }
 
