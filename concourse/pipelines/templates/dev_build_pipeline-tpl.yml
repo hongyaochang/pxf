@@ -140,6 +140,13 @@ resources:
     branch: ((pxf-git-branch))
     uri: ((pxf-git-remote))
 
+- name: pxf_5_src
+  type: git
+  icon: git
+  source:
+    branch: branch-5.16
+    uri: ((pxf-git-remote))
+
 {% if multinode or multinode_no_impersonation or file %}
 - name: ccp_src
   type: git
@@ -926,6 +933,7 @@ jobs:
     - get: pxf_src
       passed: [Build PXF-GP[[gp_ver]] on RHEL7]
       trigger: true
+    - get: pxf_5_src
     - get: pxf_artifact
       resource: pxf5_gp6_rhel7_released # for upgrade test
     - get: pxf_tarball
@@ -1026,6 +1034,24 @@ jobs:
       KERBEROS: ((kerberos-enabled))
       PXF_JVM_OPTS: ((pxf-jvm-opts))
       PXF_VERSION: 5
+  - task: Smoke Test PXF-GP[[gp_ver]]-HDP2-SECURE-MULTI-IMPERS on RHEL7
+    input_mapping:
+      pxf_tarball: pxf_tarball_ignore # do not install from the artifact
+    image: gpdb[[gp_ver]]-pxf-dev-centos7-image
+    file: pxf_src/concourse/tasks/test_pxf_on_ccp.yml
+    attempts: 2
+    params:
+      ACCESS_KEY_ID: ((tf-machine-access-key-id))
+      SECRET_ACCESS_KEY: ((tf-machine-secret-access-key))
+      HIVE_VERSION: 2
+      IMPERSONATION: true
+      KERBEROS: ((kerberos-enabled))
+      GOOGLE_PROJECT_ID: ((google-project-id))
+      GP_VER: [[gp_ver]]
+      GROUP: smoke
+      PXF_JVM_OPTS: ((pxf-jvm-opts))
+      PXF_VERSION: 5
+      TARGET_OS: centos
   - task: Upgrade to PXF 6
     input_mapping:
       terraform: terraform_gpdb
@@ -1036,6 +1062,8 @@ jobs:
       GP_VER: [[gp_ver]]
       PXF_BASE_DIR: /home/gpadmin/pxf-boot
   - task: Test PXF-GP[[gp_ver]]-HDP2-SECURE-MULTI-IMPERS on RHEL7
+    input_mapping:
+      pxf_artifact: pxf_artifact_ignore # don't use the PXF 5 artifact for this test
     image: gpdb[[gp_ver]]-pxf-dev-centos7-image
     file: pxf_src/concourse/tasks/test_pxf_on_ccp.yml
     attempts: 2

@@ -52,9 +52,18 @@ function upgrade_pxf() {
 
 	echoGreen "Perform PXF migrate from PXF_CONF=~gpadmin/pxf to PXF_BASE_DIR=${PXF_BASE_DIR}"
 	ssh "${MASTER_HOSTNAME}" "PXF_BASE=${PXF_BASE_DIR} PXF_CONF=~gpadmin/pxf ${PXF_HOME}/bin/pxf cluster migrate"
+	
+	echoGreen "Update pxf.conf to pxf.base in pxf-site.xml files"
+	ssh "${MASTER_HOSTNAME}" "find ${PXF_BASE_DIR} -name pxf-site.xml -exec sed -i s/pxf.conf/pxf.base/g {} +"
+
+	echoGreen "Sync updates"
+	ssh "${MASTER_HOSTNAME}" "PXF_BASE=${PXF_BASE_DIR} ${PXF_HOME}/bin/pxf cluster sync"
 
 	echoGreen "Starting PXF 6"
 	ssh "${MASTER_HOSTNAME}" "PXF_BASE=${PXF_BASE_DIR} ${PXF_HOME}/bin/pxf cluster start"
+
+	echoGreen "ALTER EXTENSION pxf UPDATE - for pxfautomation database"
+	ssh "${MASTER_HOSTNAME}" "source ${GPHOME}/greenplum_path.sh && psql -d pxfautomation -c 'ALTER EXTENSION pxf UPDATE'"
 }
 
 function _main() {

@@ -24,6 +24,12 @@ LOCAL_GPHD_ROOT=/singlecluster
 PROTOCOL=${PROTOCOL:-}
 PROXY_USER=${PROXY_USER:-pxfuser}
 
+if [[ ${PXF_VERSION} == 5 ]]; then
+	PXF_SRC=pxf_5_src
+else
+	PXF_SRC=pxf_src
+fi
+
 function configure_local_hdfs() {
 	sed -i -e "s|hdfs://0.0.0.0:8020|hdfs://${HADOOP_HOSTNAME}:8020|" \
 	${LOCAL_GPHD_ROOT}/hadoop/etc/hadoop/core-site.xml ${LOCAL_GPHD_ROOT}/hbase/conf/hbase-site.xml
@@ -78,7 +84,7 @@ function update_pghba_conf() {
 
 function setup_pxf_on_cluster() {
 	# drop named query file for JDBC test to gpadmin's home on mdw
-	scp "${SSH_OPTS[@]}" pxf_src/automation/src/test/resources/{,hive-}report.sql gpadmin@mdw:
+	scp "${SSH_OPTS[@]}" ${PXF_SRC}/automation/src/test/resources/{,hive-}report.sql gpadmin@mdw:
 
 	if [[ "${PROTOCOL}" == "file" ]]; then
 		# drop pxf-profiles.xml file with sequence file profiles for file protocol
@@ -353,10 +359,10 @@ function configure_nfs() {
 }
 
 function run_pxf_automation() {
-	local multiNodesCluster=pxf_src/automation/src/test/resources/sut/MultiNodesCluster.xml
+	local multiNodesCluster=${PXF_SRC}/automation/src/test/resources/sut/MultiNodesCluster.xml
 
 	if [[ $KERBEROS == true ]]; then
-		multiNodesCluster=pxf_src/automation/src/test/resources/sut/MultiHadoopMultiNodesCluster.xml
+		multiNodesCluster=${PXF_SRC}/automation/src/test/resources/sut/MultiHadoopMultiNodesCluster.xml
 	fi
 
 	if (( HIVE_VERSION == 2 )); then
@@ -377,11 +383,20 @@ function run_pxf_automation() {
 
 	if [[ $KERBEROS == true ]]; then
 		setup_pxf_kerberos_on_cluster
-		sed -i 's/sutFile=default.xml/sutFile=MultiHadoopMultiNodesCluster.xml/g' pxf_src/automation/jsystem.properties
+		sed -i 's/sutFile=default.xml/sutFile=MultiHadoopMultiNodesCluster.xml/g' ${PXF_SRC}/automation/jsystem.properties
 	else
-		sed -i 's/sutFile=default.xml/sutFile=MultiNodesCluster.xml/g' pxf_src/automation/jsystem.properties
+		sed -i 's/sutFile=default.xml/sutFile=MultiNodesCluster.xml/g' ${PXF_SRC}/automation/jsystem.properties
 	fi
-	chown -R gpadmin:gpadmin ~gpadmin/.ssh pxf_src/automation
+	if [[ ${PXF_VERSION} == 5 ]]; then
+		chown -R gpadmin:gpadmin ~gpadmin/pxf
+
+		# Disable HBaseSmokeTest in multinode setup since HBase service is not available
+		if [[ ${GROUP} == *"smoke"* ]]; then
+			sed -i 's/"smoke"/"smoke_disabled"/g' $(find ${PXF_SRC}/automation/ -name HBaseSmokeTest.java)
+		fi
+
+	fi
+	chown -R gpadmin:gpadmin ~gpadmin/.ssh ${PXF_SRC}/automation
 
 	cat > ~gpadmin/run_pxf_automation_test.sh <<-EOF
 		#!/usr/bin/env bash
@@ -392,6 +407,7 @@ function run_pxf_automation() {
 		# set explicit GPHOME here for consistency across container / CCP
 		export GPHOME=${GPHOME}
 		export PXF_HOME=${PXF_HOME}
+		export PXF_VERSION=${PXF_VERSION}
 		export PGHOST=mdw
 		export PGPORT=5432
 
@@ -400,8 +416,8 @@ function run_pxf_automation() {
 		export BASE_PATH='${BASE_PATH}'
 		export PROTOCOL=${PROTOCOL}
 
-		cd ${PWD}/pxf_src/automation
-		make -C ${PWD}/pxf_src/automation GROUP=${GROUP}
+		cd ${PWD}/${PXF_SRC}/automation
+		make -C ${PWD}/${PXF_SRC}/automation GROUP=${GROUP}
 	EOF
 
 	chown gpadmin:gpadmin ~gpadmin/run_pxf_automation_test.sh

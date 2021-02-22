@@ -9,6 +9,12 @@ PROXY_USER=${PROXY_USER:-pxfuser}
 PROTOCOL=${PROTOCOL:-}
 GOOGLE_PROJECT_ID=${GOOGLE_PROJECT_ID:-data-gpdb-ud}
 
+if [[ ${PXF_VERSION} == 5 ]]; then
+	PXF_SRC=$(find /tmp/build -name pxf_5_src -type d)
+else
+	PXF_SRC=$(find /tmp/build -name pxf_src -type d)
+fi
+
 # on purpose do not call this PXF_CONF|PXF_BASE so that it is not set during pxf operations
 if [[ ${PXF_VERSION} == 5 ]]; then
 	BASE_DIR=~gpadmin/pxf
@@ -145,7 +151,7 @@ function install_gpdb_binary() {
 		export_pythonpath+=:/usr/local/lib/$python_dir
 	fi
 
-	echo "$export_pythonpath" >> "${PXF_COMMON_SRC_DIR}/../../automation/tinc/main/tinc_env.sh"
+	echo "$export_pythonpath" >> "${PXF_SRC}/automation/tinc/main/tinc_env.sh"
 }
 
 function install_gpdb_package() {
@@ -195,7 +201,7 @@ function install_gpdb_package() {
 		exit 1
 	fi
 
-	echo "$export_pythonpath" >> "${PXF_COMMON_SRC_DIR}/../../automation/tinc/main/tinc_env.sh"
+	echo "$export_pythonpath" >> "${PXF_SRC}/automation/tinc/main/tinc_env.sh"
 
 	# create symlink to allow pgregress to run (hardcoded to look for /usr/local/greenplum-db-devel/psql)
 	rm -rf /usr/local/greenplum-db-devel
@@ -313,10 +319,16 @@ function install_pxf_server() {
 }
 
 function install_pxf_tarball() {
-    local tarball_dir=${PXF_PKG_DIR:-pxf_tarball}
-    tar -xzf "${tarball_dir}/"pxf-*.tar.gz -C /tmp
-    /tmp/pxf*/install_component
-    chown -R gpadmin:gpadmin "${PXF_HOME}"
+	if [[ -d pxf_artifact ]]; then
+		mkdir -p /tmp/pxf_installer/
+		cp pxf_artifact/*.rpm /tmp/pxf_installer
+		cp pxf_src/package/install_rpm /tmp/pxf_installer/install_component
+	else
+		local tarball_dir=${PXF_PKG_DIR:-pxf_tarball}
+		tar -xzf "${tarball_dir}/"pxf-*.tar.gz -C /tmp
+	fi
+	/tmp/pxf*/install_component
+	chown -R gpadmin:gpadmin "${PXF_HOME}"
 }
 
 function install_pxf_package() {
@@ -475,8 +487,8 @@ function configure_pxf_server() {
 	# requires a login shell to source startup scripts (JAVA_HOME)
 	su --login gpadmin -c "${PXF_HOME}/bin/pxf register"
 
-	# prepare pxf if BASE_DIR is different from PXF_HOME
-	if [[ "$BASE_DIR" != "$PXF_HOME" ]]; then
+	# for PXF 6 prepare if BASE_DIR is different from PXF_HOME
+	if [[ ${PXF_VERSION} != "5" ]] && [[ "$BASE_DIR" != "$PXF_HOME" ]]; then
 		echo "Prepare PXF in $BASE_DIR"
 		su --login gpadmin -c "PXF_BASE=${BASE_DIR} pxf prepare"
 		export PXF_BASE=${BASE_DIR}
@@ -694,8 +706,7 @@ function configure_pxf_default_server() {
 				-e 's|</configuration>|<property><name>hadoop.security.authentication</name><value>kerberos</value></property></configuration>|g' \
 				${BASE_DIR}/servers/db-hive/jdbc-site.xml
 
-			PXF_SRC_DIR=$(find /tmp/build/ -name pxf_src)
-			cp "${PXF_SRC_DIR}"/automation/src/test/resources/hive-report.sql ${BASE_DIR}/servers/db-hive/
+			cp "${PXF_SRC}"/automation/src/test/resources/hive-report.sql ${BASE_DIR}/servers/db-hive/
 		fi
 	else
 		# copy hadoop config files to BASE_DIR/servers/default

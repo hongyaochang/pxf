@@ -35,7 +35,14 @@ ifeq "$(PROTOCOL)" "minio"
 	PROTOCOL=s3
 endif
 
-PXF_BASE ?= $(PXF_HOME)
+ifeq "$(PXF_VERSION)" "5"
+	PXF_BASE ?= $(HOME)/pxf
+	TEMPLATES_DIR=$(PXF_BASE)/templates
+else
+	PXF_BASE ?= $(PXF_HOME)
+	TEMPLATES_DIR=$(PXF_HOME)/templates
+endif
+
 PXF_BASE_SERVERS=$(PXF_BASE)/servers
 
 ifneq "$(PROTOCOL)" ""
@@ -86,21 +93,37 @@ check-env:
 	@if [ -z "$(PXF_HOME)" ]; then echo 'ERROR: PXF_HOME must be set'; exit 1; fi
 
 symlink_pxf_jars: check-env
-	@if [ -d "$(PXF_HOME)/application" ]; then \
-		rm -rf $(PXF_TMP_LIB) && \
-		mkdir -p $(PXF_TMP_LIB)/tmp && \
-		unzip -qq -j $(PXF_HOME)/application/pxf-app-*.jar 'BOOT-INF/lib/pxf-*.jar' -d $(PXF_TMP_LIB)/tmp && \
-		for jar in $(PXF_TMP_LIB)/tmp/pxf-*.jar; do \
-			jar_name="$${jar##*/}"; \
-			if [[ $${jar_name} =~ ^pxf-[A-Za-z0-9]+(-[0-9.]+.*).jar$$ ]]; then \
-				link=$(PXF_TMP_LIB)/$${jar_name/$${BASH_REMATCH[1]}/}; \
-				echo "copying $${link} -> $${jar}"; \
-				cp "$${jar}" "$${link}"; \
-			fi; \
-		done; \
-		touch $(PXF_TMP_LIB)/pxf-extras.jar && \
-		if [ -f "/tmp/pxf-extras-1.0.0.jar" ]; then cp /tmp/pxf-extras-1.0.0.jar $(PXF_TMP_LIB)/pxf-extras.jar; fi && \
-		rm -rf $(PXF_TMP_LIB)/tmp; \
+	@if [ "$(PXF_VERSION)" = "5" ]; then \
+		if [ -d "$(PXF_HOME)/lib" ]; then \
+			rm -rf $(PXF_TMP_LIB) && \
+			mkdir -p $(PXF_TMP_LIB) && \
+			for jar in $(PXF_HOME)/lib/pxf-*.jar; do \
+				jar_name="$${jar##*/}"; \
+				if [[ $${jar_name} =~ ^pxf-[A-Za-z0-9]+(-[0-9.]+.*).jar$$ ]]; then \
+					link=$(PXF_TMP_LIB)/$${jar_name/$${BASH_REMATCH[1]}/}; \
+					echo "creating link $${link} -> $${jar}"; \
+					ln -sf "$${jar}" "$${link}"; \
+				fi; \
+			done; \
+			touch $(PXF_TMP_LIB)/pxf-extras.jar; \
+		fi; \
+	else \
+		if [ -d "$(PXF_HOME)/application" ]; then \
+			rm -rf $(PXF_TMP_LIB) && \
+			mkdir -p $(PXF_TMP_LIB)/tmp && \
+			unzip -qq -j $(PXF_HOME)/application/pxf-app-*.jar 'BOOT-INF/lib/pxf-*.jar' -d $(PXF_TMP_LIB)/tmp && \
+			for jar in $(PXF_TMP_LIB)/tmp/pxf-*.jar; do \
+				jar_name="$${jar##*/}"; \
+				if [[ $${jar_name} =~ ^pxf-[A-Za-z0-9]+(-[0-9.]+.*).jar$$ ]]; then \
+					link=$(PXF_TMP_LIB)/$${jar_name/$${BASH_REMATCH[1]}/}; \
+					echo "copying $${link} -> $${jar}"; \
+					cp "$${jar}" "$${link}"; \
+				fi; \
+			done; \
+			touch $(PXF_TMP_LIB)/pxf-extras.jar && \
+			if [ -f "/tmp/pxf-extras-1.0.0.jar" ]; then cp /tmp/pxf-extras-1.0.0.jar $(PXF_TMP_LIB)/pxf-extras.jar; fi && \
+			rm -rf $(PXF_TMP_LIB)/tmp; \
+		fi; \
 	fi
 
 test: check-env clean-logs symlink_pxf_jars sync_cloud_configs sync_jdbc_config
@@ -121,7 +144,7 @@ dev: symlink_pxf_jars
 sync_jdbc_config:
 	@mkdir -p $(PXF_BASE_SERVERS)/database
 	@if [ ! -f $(PXF_BASE_SERVERS)/database/jdbc-site.xml ]; then \
-		cp $(PXF_HOME)/templates/jdbc-site.xml $(PXF_BASE_SERVERS)/database/; \
+		cp $(TEMPLATES_DIR)/jdbc-site.xml $(PXF_BASE_SERVERS)/database/; \
 		sed $(SED_OPTS) "s|YOUR_DATABASE_JDBC_DRIVER_CLASS_NAME|org.postgresql.Driver|" $(PXF_BASE_SERVERS)/database/jdbc-site.xml; \
 		sed $(SED_OPTS) "s|YOUR_DATABASE_JDBC_URL|jdbc:postgresql://$(JDBC_HOST):$(JDBC_PORT)/pxfautomation|" $(PXF_BASE_SERVERS)/database/jdbc-site.xml; \
 		sed $(SED_OPTS) "s|YOUR_DATABASE_JDBC_USER||" $(PXF_BASE_SERVERS)/database/jdbc-site.xml; \
@@ -132,7 +155,7 @@ sync_jdbc_config:
 	@cp src/test/resources/report.sql $(PXF_BASE_SERVERS)/database
 	@mkdir -p $(PXF_BASE_SERVERS)/db-session-params
 	@if [ ! -f $(PXF_BASE_SERVERS)/db-session-params/jdbc-site.xml ]; then \
-		cp $(PXF_HOME)/templates/jdbc-site.xml $(PXF_BASE_SERVERS)/db-session-params/; \
+		cp $(TEMPLATES_DIR)/jdbc-site.xml $(PXF_BASE_SERVERS)/db-session-params/; \
 		sed $(SED_OPTS) "s|YOUR_DATABASE_JDBC_DRIVER_CLASS_NAME|org.postgresql.Driver|" $(PXF_BASE_SERVERS)/db-session-params/jdbc-site.xml; \
 		sed $(SED_OPTS) "s|YOUR_DATABASE_JDBC_URL|jdbc:postgresql://$(JDBC_HOST):$(JDBC_PORT)/pxfautomation|" $(PXF_BASE_SERVERS)/db-session-params/jdbc-site.xml; \
 		sed $(SED_OPTS) "s|YOUR_DATABASE_JDBC_USER||" $(PXF_BASE_SERVERS)/db-session-params/jdbc-site.xml; \
@@ -142,7 +165,7 @@ sync_jdbc_config:
 	fi
 	@mkdir -p $(PXF_BASE_SERVERS)/db-hive
 	@if [ ! -f $(PXF_BASE_SERVERS)/db-hive/jdbc-site.xml ]; then \
-		cp $(PXF_HOME)/templates/jdbc-site.xml $(PXF_BASE_SERVERS)/db-hive/; \
+		cp $(TEMPLATES_DIR)/jdbc-site.xml $(PXF_BASE_SERVERS)/db-hive/; \
 		sed $(SED_OPTS) "s|YOUR_DATABASE_JDBC_DRIVER_CLASS_NAME|org.apache.hive.jdbc.HiveDriver|" $(PXF_BASE_SERVERS)/db-hive/jdbc-site.xml; \
 		sed $(SED_OPTS) "s|YOUR_DATABASE_JDBC_URL|jdbc:hive2://$(HIVE_SERVER_HOST):$(HIVE_SERVER_PORT)/default|" $(PXF_BASE_SERVERS)/db-hive/jdbc-site.xml; \
 		sed $(SED_OPTS) "s|YOUR_DATABASE_JDBC_USER||" $(PXF_BASE_SERVERS)/db-hive/jdbc-site.xml; \
@@ -156,8 +179,8 @@ sync_cloud_configs:
 ifneq "$(PROTOCOL)" ""
 	@mkdir -p $(PROTOCOL_HOME)
 	@if [ ! -f "$(PROTOCOL_HOME)/$(PROTOCOL)-site.xml" ]; then \
-		cp $(PXF_HOME)/templates/$(PROTOCOL)-site.xml $(PROTOCOL_HOME)/; \
-		cp $(PXF_HOME)/templates/mapred-site.xml $(PROTOCOL_HOME)/; \
+		cp $(TEMPLATES_DIR)/$(PROTOCOL)-site.xml $(PROTOCOL_HOME)/; \
+		cp $(TEMPLATES_DIR)/mapred-site.xml $(PROTOCOL_HOME)/; \
 		if [ $(PROTOCOL) = file ]; then \
 			if [ ! -d "$(BASE_PATH)" ]; then \
 				echo "The NFS directory '$(BASE_PATH)' does not exist. Please configure it and try again"; \
@@ -165,16 +188,16 @@ ifneq "$(PROTOCOL)" ""
 				exit 1; \
 			fi; \
 			echo "Make sure your $PXF_BASE/conf/pxf-profiles.xml file configures the file:AvroSequenceFile and file:SequenceFile profiles"; \
-			cp $(PXF_HOME)/templates/pxf-site.xml $(PROTOCOL_HOME)/; \
+			cp $(TEMPLATES_DIR)/pxf-site.xml $(PROTOCOL_HOME)/; \
 			sed $(SED_OPTS) 's|</configuration>|<property><name>pxf.fs.basePath</name><value>$(BASE_PATH)</value></property></configuration>|g' $(PROTOCOL_HOME)/pxf-site.xml; \
 		fi; \
 		if [ $(PROTOCOL) = s3 ]; then \
 			if [ "$(MINIO)" = "true" ]; then \
-				cp $(PXF_HOME)/templates/minio-site.xml $(PROTOCOL_HOME)/$(PROTOCOL)-site.xml; \
+				cp $(TEMPLATES_DIR)/minio-site.xml $(PROTOCOL_HOME)/$(PROTOCOL)-site.xml; \
 				sed $(SED_OPTS) "s|YOUR_MINIO_URL|http://localhost:9000|" $(PROTOCOL_HOME)/$(PROTOCOL)-site.xml; \
 			fi; \
 			mkdir -p $(PROTOCOL_HOME)-invalid; \
-			cp $(PXF_HOME)/templates/$(PROTOCOL)-site.xml $(PROTOCOL_HOME)-invalid/; \
+			cp $(TEMPLATES_DIR)/$(PROTOCOL)-site.xml $(PROTOCOL_HOME)-invalid/; \
 			if [ -z "$(ACCESS_KEY_ID)" ] || [ -z "$(SECRET_ACCESS_KEY)" ]; then \
 				echo "AWS Keys (ACCESS_KEY_ID, SECRET_ACCESS_KEY) not set"; \
 				rm -rf $(PROTOCOL_HOME); \
