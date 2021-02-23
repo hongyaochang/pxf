@@ -90,7 +90,7 @@ public class HttpRequestParserTest {
         parameters.add("X-GP-DATA-ENCODING", "UTF8");
         parameters.add("X-GP-DATABASE-ENCODING", "UTF8");
 
-        parser = new HttpRequestParser(mockPluginConf, new CharsetUtils(), mockBuildProperties);
+        parser = new HttpRequestParser(mockPluginConf, new CharsetUtils());
     }
 
     @AfterEach

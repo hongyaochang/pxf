@@ -9,6 +9,7 @@ import org.greenplum.pxf.api.utilities.CharsetUtils;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
 import org.greenplum.pxf.api.utilities.EnumAggregationType;
 import org.greenplum.pxf.api.utilities.Utilities;
+import org.greenplum.pxf.service.rest.Version;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.info.BuildProperties;
@@ -41,23 +42,23 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
 
     private final CharsetUtils charsetUtils;
     private final PluginConf pluginConf;
-    private final BuildProperties buildProperties;
+//    private final BuildProperties buildProperties;
 
     /**
      * Create a new instance of the HttpRequestParser with the given PluginConf
      *
      * @param pluginConf   the plugin conf
      * @param charsetUtils utilities for Charset
-     * @param buildProperties the build properties object
      */
-    public HttpRequestParser(PluginConf pluginConf, CharsetUtils charsetUtils, BuildProperties buildProperties) {
+    public HttpRequestParser(PluginConf pluginConf, CharsetUtils charsetUtils) {
         this.pluginConf = pluginConf;
         this.charsetUtils = charsetUtils;
-        this.buildProperties = buildProperties;
     }
 
     @Override
     public RequestContext parseRequest(MultiValueMap<String, String> requestHeaders, RequestContext.RequestType requestType) {
+
+        LOG.info("ax+bb: PXF_PROTOCOL_VERSION: {}", Version.PXF_PROTOCOL_VERSION);
 
         RequestMap params = new RequestMap(requestHeaders);
 
@@ -74,7 +75,7 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException(String.format("%s. Ensure PXF extension has been updated to the latest version.", e.getMessage()));
         }
-        checkVersionHeaders(context);
+        PxfApiVersionChecker.isCompatible(context.getExtensionApiVersion(), Version.PXF_PROTOCOL_VERSION);
 
         // whether we are in a fragmenter, read_bridge, or write_bridge scenario
         context.setRequestType(requestType);
@@ -222,23 +223,6 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
         context.validate();
 
         return context;
-    }
-
-    /**
-     * checks if X-GP-PXF-VERSION is equal to the service version and logs a warning if there is a mismatch
-     * checks if X-GP-MIN-PXF-VERSION is less than the service version and returns an error otherwise
-     *
-     * @param context key-value map of HTTP headers from request
-     */
-    private void checkVersionHeaders(RequestContext context) {
-        ComparableVersion serverApiVersion = new ComparableVersion(buildProperties.getVersion());
-        ComparableVersion extensionApiVersion = new ComparableVersion(context.getExtensionApiVersion());
-
-        LOG.info("extension using API version: {}", extensionApiVersion);
-
-        if (extensionApiVersion.compareTo(serverApiVersion) != 0) {
-            throw new IllegalArgumentException("Incompatible request from PXF extension; please update your PXF extension.");
-        }
     }
 
     /**
