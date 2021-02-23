@@ -75,7 +75,9 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException(String.format("%s. Ensure PXF extension has been updated to the latest version.", e.getMessage()));
         }
-        PxfApiVersionChecker.isCompatible(context.getExtensionApiVersion(), Version.PXF_PROTOCOL_VERSION);
+        if (!PxfApiVersionChecker.isCompatible(context.getExtensionApiVersion(), Version.PXF_PROTOCOL_VERSION)) {
+            throw new IllegalArgumentException("Incompatible request from PXF extension; please update your PXF extension.");
+        }
 
         // whether we are in a fragmenter, read_bridge, or write_bridge scenario
         context.setRequestType(requestType);

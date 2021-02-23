@@ -10,5 +10,7 @@ public class Version {
      * actual value on build stage, using pxfProtocolVersion parameter from
      * gradle.properties
      */
-    public final static String PXF_PROTOCOL_VERSION = "v15";
+    // TODO: this (^) comment lies
+    // TODO: add comment to keep this file in sync w/ api_version in repo root
+    public final static String PXF_PROTOCOL_VERSION = "16";
 }

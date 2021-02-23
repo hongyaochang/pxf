@@ -31,7 +31,6 @@ import org.greenplum.pxf.api.utilities.FragmentMetadata;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.info.BuildProperties;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -59,12 +58,9 @@ public class HttpRequestParserTest {
     private HttpRequestParser parser;
     private MultiValueMap<String, String> parameters;
     private PluginConf mockPluginConf;
-    private BuildProperties mockBuildProperties;
 
     @BeforeEach
     public void setUp() {
-        mockBuildProperties = mock(BuildProperties.class);
-        when(mockBuildProperties.getVersion()).thenReturn("1.0.0");
         mockPluginConf = mock(PluginConf.class);
 
         parameters = new LinkedMultiValueMap<>();
@@ -76,7 +72,9 @@ public class HttpRequestParserTest {
         parameters.add("X-GP-URL-HOST", "my://bags");
         parameters.add("X-GP-URL-PORT", "-8020");
         parameters.add("X-GP-ATTRS", "-1");
-        parameters.add("X-GP-PXF-API-VERSION", "1.0.0");
+        // FIXME: this currently needs to be kept in-sync with Version.java which is annoying
+        // we need to figure out how to mock Version.java
+        parameters.add("X-GP-PXF-API-VERSION", "16");
         parameters.add("X-GP-OPTIONS-FRAGMENTER", "we");
         parameters.add("X-GP-OPTIONS-ACCESSOR", "are");
         parameters.add("X-GP-OPTIONS-RESOLVER", "packed");
@@ -638,7 +636,8 @@ public class HttpRequestParserTest {
 
     @Test
     public void testDifferentPxfApiVersions() {
-        when(mockBuildProperties.getVersion()).thenReturn("1.1.0");
+//        when(mockBuildProperties.getVersion()).thenReturn("1.1.0");
+        parameters.set("X-GP-PXF-API-VERSION", "15");
         Exception e = assertThrows(IllegalArgumentException.class,
                 () -> parser.parseRequest(parameters, RequestType.READ_BRIDGE));
         assertEquals("Incompatible request from PXF extension; please update your PXF extension.", e.getMessage());
