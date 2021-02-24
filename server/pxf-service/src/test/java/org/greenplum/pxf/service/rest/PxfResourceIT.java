@@ -17,6 +17,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.util.MultiValueMap;
@@ -37,6 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest({PxfResource.class, PxfLegacyResource.class})
+@TestPropertySource(properties = {"pxf.logdir=/tmp"})
 public class PxfResourceIT {
 
     @Autowired
@@ -50,11 +52,6 @@ public class PxfResourceIT {
 
     @Mock
     private RequestContext mockContext;
-
-    @BeforeAll
-    public static void init() {
-        System.setProperty("pxf.logdir", "/tmp");
-    }
 
     @Test
     public void testReadEndpoint() throws Exception {
