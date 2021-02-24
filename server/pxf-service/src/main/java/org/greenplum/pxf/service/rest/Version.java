@@ -12,5 +12,5 @@ public class Version {
      */
     // TODO: this (^) comment lies
     // TODO: add comment to keep this file in sync w/ api_version in repo root
-    public final static String PXF_PROTOCOL_VERSION = "16";
+    public final static String PXF_PROTOCOL_VERSION = "v15";
 }

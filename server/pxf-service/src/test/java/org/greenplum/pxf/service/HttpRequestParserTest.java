@@ -20,6 +20,7 @@ package org.greenplum.pxf.service;
  */
 
 
+import org.greenplum.pxf.api.configuration.PxfServerProperties;
 import org.greenplum.pxf.api.examples.DemoFragmentMetadata;
 import org.greenplum.pxf.api.model.OutputFormat;
 import org.greenplum.pxf.api.model.PluginConf;
@@ -58,10 +59,12 @@ public class HttpRequestParserTest {
     private HttpRequestParser parser;
     private MultiValueMap<String, String> parameters;
     private PluginConf mockPluginConf;
+    private PxfServerProperties mockServerProperties;
 
     @BeforeEach
     public void setUp() {
         mockPluginConf = mock(PluginConf.class);
+        mockServerProperties = mock(PxfServerProperties.class);
 
         parameters = new LinkedMultiValueMap<>();
         parameters.add("X-GP-ALIGNMENT", "all");
@@ -88,7 +91,8 @@ public class HttpRequestParserTest {
         parameters.add("X-GP-DATA-ENCODING", "UTF8");
         parameters.add("X-GP-DATABASE-ENCODING", "UTF8");
 
-        parser = new HttpRequestParser(mockPluginConf, new CharsetUtils());
+        parser = new HttpRequestParser(mockPluginConf, new CharsetUtils(), mockServerProperties);
+
     }
 
     @AfterEach

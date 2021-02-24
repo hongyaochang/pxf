@@ -1,7 +1,7 @@
 package org.greenplum.pxf.service;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.hadoop.util.ComparableVersion;
+import org.greenplum.pxf.api.configuration.PxfServerProperties;
 import org.greenplum.pxf.api.model.OutputFormat;
 import org.greenplum.pxf.api.model.PluginConf;
 import org.greenplum.pxf.api.model.RequestContext;
@@ -9,10 +9,8 @@ import org.greenplum.pxf.api.utilities.CharsetUtils;
 import org.greenplum.pxf.api.utilities.ColumnDescriptor;
 import org.greenplum.pxf.api.utilities.EnumAggregationType;
 import org.greenplum.pxf.api.utilities.Utilities;
-import org.greenplum.pxf.service.rest.Version;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.info.BuildProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MultiValueMap;
 
@@ -43,6 +41,7 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
     private final CharsetUtils charsetUtils;
     private final PluginConf pluginConf;
 //    private final BuildProperties buildProperties;
+    private final PxfServerProperties serverProperties;
 
     /**
      * Create a new instance of the HttpRequestParser with the given PluginConf
@@ -50,15 +49,16 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
      * @param pluginConf   the plugin conf
      * @param charsetUtils utilities for Charset
      */
-    public HttpRequestParser(PluginConf pluginConf, CharsetUtils charsetUtils) {
+    public HttpRequestParser(PluginConf pluginConf, CharsetUtils charsetUtils, PxfServerProperties serverProperties) {
         this.pluginConf = pluginConf;
         this.charsetUtils = charsetUtils;
+        this.serverProperties = serverProperties;
     }
 
     @Override
     public RequestContext parseRequest(MultiValueMap<String, String> requestHeaders, RequestContext.RequestType requestType) {
 
-        LOG.info("ax+bb: PXF_PROTOCOL_VERSION: {}", Version.PXF_PROTOCOL_VERSION);
+        LOG.info("ax+bb: PXF_PROTOCOL_VERSION: {}", serverProperties.getProtocol().getVersion());
 
         RequestMap params = new RequestMap(requestHeaders);
 
@@ -75,7 +75,8 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException(String.format("%s. Ensure PXF extension has been updated to the latest version.", e.getMessage()));
         }
-        if (!PxfApiVersionChecker.isCompatible(context.getExtensionApiVersion(), Version.PXF_PROTOCOL_VERSION)) {
+        if (!PxfApiVersionChecker.isCompatible(context.getExtensionApiVersion(), serverProperties.getProtocol().getVersion())) {
+            LOG.info("extension protocol version: {}", context.getExtensionApiVersion());
             throw new IllegalArgumentException("Incompatible request from PXF extension; please update your PXF extension.");
         }
 
