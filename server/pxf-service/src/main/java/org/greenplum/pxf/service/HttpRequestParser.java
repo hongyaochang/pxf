@@ -65,6 +65,9 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
         }
 
         RequestContext context = new RequestContext();
+
+        // fill the Request-scoped RequestContext with parsed values
+
         context.setExtensionApiVersion(
                 params.removeProperty("PXF-API-VERSION", "Ensure PXF extension has been updated to the latest version."));
 
