@@ -78,8 +78,6 @@ public class HttpRequestParserTest {
         parameters.add("X-GP-URL-HOST", "my://bags");
         parameters.add("X-GP-URL-PORT", "-8020");
         parameters.add("X-GP-ATTRS", "-1");
-        // FIXME: this currently needs to be kept in-sync with Version.java which is annoying
-        // we need to figure out how to mock Version.java
         parameters.add("X-GP-PXF-API-VERSION", "16");
         parameters.add("X-GP-OPTIONS-FRAGMENTER", "we");
         parameters.add("X-GP-OPTIONS-ACCESSOR", "are");
@@ -643,7 +641,6 @@ public class HttpRequestParserTest {
 
     @Test
     public void testDifferentPxfApiVersions() {
-//        when(mockBuildProperties.getVersion()).thenReturn("1.1.0");
         parameters.set("X-GP-PXF-API-VERSION", "15");
         Exception e = assertThrows(IllegalArgumentException.class,
                 () -> parser.parseRequest(parameters, RequestType.READ_BRIDGE));

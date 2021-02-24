@@ -40,7 +40,6 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
 
     private final CharsetUtils charsetUtils;
     private final PluginConf pluginConf;
-//    private final BuildProperties buildProperties;
     private final PxfServerProperties serverProperties;
 
     /**
