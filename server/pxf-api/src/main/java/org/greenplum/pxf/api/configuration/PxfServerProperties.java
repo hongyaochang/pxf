@@ -34,7 +34,7 @@ public class PxfServerProperties {
 
     @Getter
     @Setter
-    private Protocol protocol = new Protocol();
+    private Api api = new Api();
 
     /**
      * Configurable task execution properties for async tasks (i.e Bridge Read)
@@ -55,7 +55,7 @@ public class PxfServerProperties {
 
     @Getter
     @Setter
-    public static class Protocol {
+    public static class Api {
         private String version;
     }
 

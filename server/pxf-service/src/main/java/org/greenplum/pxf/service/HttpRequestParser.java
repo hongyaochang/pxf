@@ -58,8 +58,6 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
     @Override
     public RequestContext parseRequest(MultiValueMap<String, String> requestHeaders, RequestContext.RequestType requestType) {
 
-        LOG.info("ax+bb: PXF_PROTOCOL_VERSION: {}", serverProperties.getProtocol().getVersion());
-
         RequestMap params = new RequestMap(requestHeaders);
 
         if (LOG.isDebugEnabled()) {
@@ -75,8 +73,8 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException(String.format("%s. Ensure PXF extension has been updated to the latest version.", e.getMessage()));
         }
-        if (!PxfApiVersionChecker.isCompatible(context.getExtensionApiVersion(), serverProperties.getProtocol().getVersion())) {
-            LOG.info("extension protocol version: {}", context.getExtensionApiVersion());
+        if (!PxfApiVersionChecker.isCompatible(context.getExtensionApiVersion(), getServerApiVersion())) {
+            LOG.warn("server API version: {}. extension API version: {}", getServerApiVersion(), context.getExtensionApiVersion());
             throw new IllegalArgumentException("Incompatible request from PXF extension; please update your PXF extension.");
         }
 
@@ -226,6 +224,10 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
         context.validate();
 
         return context;
+    }
+
+    private String getServerApiVersion() {
+        return serverProperties.getApi().getVersion();
     }
 
     /**
