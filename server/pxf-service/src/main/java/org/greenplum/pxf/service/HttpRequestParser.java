@@ -65,13 +65,9 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
         }
 
         RequestContext context = new RequestContext();
+        context.setExtensionApiVersion(
+                params.removeProperty("PXF-API-VERSION", "Ensure PXF extension has been updated to the latest version."));
 
-        // fill the Request-scoped RequestContext with parsed values
-        try {
-            context.setExtensionApiVersion(params.removeProperty("PXF-API-VERSION"));
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException(String.format("%s. Ensure PXF extension has been updated to the latest version.", e.getMessage()));
-        }
         if (!PxfApiVersionChecker.isCompatible(context.getExtensionApiVersion(), getServerApiVersion())) {
             LOG.warn("server API version: {}. extension API version: {}", getServerApiVersion(), context.getExtensionApiVersion());
             throw new IllegalArgumentException("Incompatible request from PXF extension; please update your PXF extension.");
@@ -471,6 +467,22 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
             }
 
             return result;
+        }
+
+        /**
+         * Returns the value to which the specified property is mapped and
+         * removes it from the map
+         *
+         * @param property the lookup property key
+         * @param errMsgHint hint for user to include in error message
+         * @throws IllegalArgumentException if property key is missing
+         */
+        private String removeProperty(String property, String errMsgHint) {
+            try {
+                return removeProperty(property);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(String.format("%s. %s", e.getMessage(), errMsgHint));
+            }
         }
 
         /**
