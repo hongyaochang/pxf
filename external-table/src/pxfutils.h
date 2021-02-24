@@ -25,6 +25,16 @@ const char *get_pxf_host(void);
  */
 const int  get_pxf_port(void);
 
+/* Returns the 128-bit trace id to be propagated
+ * to the PXF Service
+ */
+char	   *GetTraceId(char* xid, int slideId, Oid relnamespace, const char* relname, char* user);
+
+/* Returns the 64-bit span id to be propagated
+ * to the PXF Service
+ */
+char	   *GetSpanId(char* traceId, char* segmentId);
+
 #define PXF_PROFILE       "PROFILE"
 #define FRAGMENTER        "FRAGMENTER"
 #define ACCESSOR          "ACCESSOR"

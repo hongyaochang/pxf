@@ -58,7 +58,11 @@ build_http_headers(PxfInputData *input)
 	char           *data_encoding = NULL;
 	char           long_number[sizeof(int32) * 8];
 	ProjectionInfo *proj_info = input->proj_info;
+	const char	   *relname;
+	Oid				relnamespace = InvalidOid;
+	char		   *traceId;
 
+	relname = gphduri->data;
 	if (rel != NULL)
 	{
 		/* format */
@@ -97,6 +101,9 @@ build_http_headers(PxfInputData *input)
 
 		/* Record fields - name and type of each field */
 		add_tuple_desc_httpheader(headers, rel);
+
+		relname = RelationGetRelationName(rel);
+		relnamespace = RelationGetNamespace(rel);
 	}
 
 	if (proj_info != NULL)
@@ -164,6 +171,15 @@ build_http_headers(PxfInputData *input)
 	else
 		churl_headers_append(headers, "X-GP-HAS-FILTER", "0");
 
+	// Add trace id = xid : slice id : namespace_oid : tablename : user
+	traceId = GetTraceId(ev.GP_XID, currentSliceId, relnamespace, relname, ev.GP_USER);
+	churl_headers_append(headers, "X-B3-TraceId", traceId);
+
+	// Add span id = traceId : segId
+	churl_headers_append(headers, "X-B3-SpanId", GetSpanId(traceId, ev.GP_SEGMENT_ID));
+
+	// Since we only establish a single connection per segment, we can safely close the connection after
+	// the segment completes streaming data.
 	churl_headers_override(headers, "Connection", "close");
 }
 
