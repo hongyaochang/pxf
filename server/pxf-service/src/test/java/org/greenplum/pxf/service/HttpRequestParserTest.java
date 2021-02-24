@@ -65,6 +65,9 @@ public class HttpRequestParserTest {
     public void setUp() {
         mockPluginConf = mock(PluginConf.class);
         mockServerProperties = mock(PxfServerProperties.class);
+        PxfServerProperties.Protocol mockProtocol = mock(PxfServerProperties.Protocol.class);
+        when(mockProtocol.getVersion()).thenReturn("16");
+        when(mockServerProperties.getProtocol()).thenReturn(mockProtocol);
 
         parameters = new LinkedMultiValueMap<>();
         parameters.add("X-GP-ALIGNMENT", "all");
