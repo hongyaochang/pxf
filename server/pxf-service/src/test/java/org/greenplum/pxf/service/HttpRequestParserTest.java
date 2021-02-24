@@ -647,26 +647,6 @@ public class HttpRequestParserTest {
         assertEquals("Incompatible request from PXF extension; please update your PXF extension.", e.getMessage());
     }
 
-//    @Test
-//    public void testExtensionMinVersionLargerThanServerVersion() {
-//        parameters.set("X-GP-MIN-PXF-VERSION", "1.19.0");
-//        when(mockBuildProperties.getVersion()).thenReturn("1.2.0");
-//
-//        Exception e = assertThrows(IllegalArgumentException.class,
-//                () -> parser.parseRequest(parameters, RequestType.READ_BRIDGE));
-//        assertEquals("PXF extension requested minimum PXF server version '1.19.0'; PXF server version is '1.2.0'. You may need to update your PXF server.", e.getMessage());
-//    }
-//
-//    @Test
-//    public void testVersionsNotMatchButSatisfiesMinVersion() {
-//        parameters.set("X-GP-MIN-PXF-VERSION", "1.0.0");
-//        when(mockBuildProperties.getVersion()).thenReturn("1.1.0");
-//
-//        RequestContext context = parser.parseRequest(parameters, RequestType.READ_BRIDGE);
-//        assertEquals("1.2.3", context.getExtensionVersion());
-//        assertEquals("1.0.0", context.getMinServerVersion());
-//    }
-
     public static class TestHandler implements ProtocolHandler {
 
         @Override
