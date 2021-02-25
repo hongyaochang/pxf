@@ -295,6 +295,11 @@ public class RequestContext {
     private Charset databaseEncoding;
 
     /**
+     * The version of the PXF API the postgres extension implements
+     */
+    private String extensionApiVersion;
+
+    /**
      * Additional Configuration Properties to be added to configuration for
      * the request
      */

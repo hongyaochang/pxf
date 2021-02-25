@@ -32,6 +32,10 @@ public class PxfServerProperties {
     @Setter
     private Tomcat tomcat = new Tomcat();
 
+    @Getter
+    @Setter
+    private Api api = new Api();
+
     /**
      * Configurable task execution properties for async tasks (i.e Bridge Read)
      */
@@ -47,6 +51,12 @@ public class PxfServerProperties {
          * Maximum number of headers allowed in the request
          */
         private int maxHeaderCount = 30000;
+    }
+
+    @Getter
+    @Setter
+    public static class Api {
+        private String version;
     }
 
     public void setBase(String base) {

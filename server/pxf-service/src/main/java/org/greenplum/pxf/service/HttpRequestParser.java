@@ -1,6 +1,7 @@
 package org.greenplum.pxf.service;
 
 import org.apache.commons.lang.StringUtils;
+import org.greenplum.pxf.api.configuration.PxfServerProperties;
 import org.greenplum.pxf.api.model.OutputFormat;
 import org.greenplum.pxf.api.model.PluginConf;
 import org.greenplum.pxf.api.model.RequestContext;
@@ -39,6 +40,7 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
 
     private final CharsetUtils charsetUtils;
     private final PluginConf pluginConf;
+    private final PxfServerProperties serverProperties;
 
     /**
      * Create a new instance of the HttpRequestParser with the given PluginConf
@@ -46,9 +48,10 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
      * @param pluginConf   the plugin conf
      * @param charsetUtils utilities for Charset
      */
-    public HttpRequestParser(PluginConf pluginConf, CharsetUtils charsetUtils) {
+    public HttpRequestParser(PluginConf pluginConf, CharsetUtils charsetUtils, PxfServerProperties serverProperties) {
         this.pluginConf = pluginConf;
         this.charsetUtils = charsetUtils;
+        this.serverProperties = serverProperties;
     }
 
     @Override
@@ -64,6 +67,14 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
         RequestContext context = new RequestContext();
 
         // fill the Request-scoped RequestContext with parsed values
+
+        context.setExtensionApiVersion(
+                params.removeProperty("PXF-API-VERSION", "Ensure PXF extension has been updated to the latest version."));
+
+        if (!PxfApiVersionChecker.isCompatible(context.getExtensionApiVersion(), getServerApiVersion())) {
+            LOG.warn("server API version: {}. extension API version: {}", getServerApiVersion(), context.getExtensionApiVersion());
+            throw new IllegalArgumentException("Incompatible request from PXF extension; please update your PXF extension.");
+        }
 
         // whether we are in a fragmenter, read_bridge, or write_bridge scenario
         context.setRequestType(requestType);
@@ -211,6 +222,10 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
         context.validate();
 
         return context;
+    }
+
+    private String getServerApiVersion() {
+        return serverProperties.getApi().getVersion();
     }
 
     /**
@@ -455,6 +470,22 @@ public class HttpRequestParser implements RequestParser<MultiValueMap<String, St
             }
 
             return result;
+        }
+
+        /**
+         * Returns the value to which the specified property is mapped and
+         * removes it from the map
+         *
+         * @param property the lookup property key
+         * @param errMsgHint hint for user to include in error message
+         * @throws IllegalArgumentException if property key is missing
+         */
+        private String removeProperty(String property, String errMsgHint) {
+            try {
+                return removeProperty(property);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(String.format("%s. %s", e.getMessage(), errMsgHint));
+            }
         }
 
         /**

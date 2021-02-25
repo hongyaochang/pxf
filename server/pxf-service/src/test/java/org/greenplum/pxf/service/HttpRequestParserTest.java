@@ -20,6 +20,7 @@ package org.greenplum.pxf.service;
  */
 
 
+import org.greenplum.pxf.api.configuration.PxfServerProperties;
 import org.greenplum.pxf.api.examples.DemoFragmentMetadata;
 import org.greenplum.pxf.api.model.OutputFormat;
 import org.greenplum.pxf.api.model.PluginConf;
@@ -58,10 +59,15 @@ public class HttpRequestParserTest {
     private HttpRequestParser parser;
     private MultiValueMap<String, String> parameters;
     private PluginConf mockPluginConf;
+    private PxfServerProperties mockServerProperties;
 
     @BeforeEach
     public void setUp() {
         mockPluginConf = mock(PluginConf.class);
+        mockServerProperties = mock(PxfServerProperties.class);
+        PxfServerProperties.Api mockApi = mock(PxfServerProperties.Api.class);
+        when(mockServerProperties.getApi()).thenReturn(mockApi);
+        when(mockApi.getVersion()).thenReturn("16");
 
         parameters = new LinkedMultiValueMap<>();
         parameters.add("X-GP-ALIGNMENT", "all");
@@ -72,6 +78,7 @@ public class HttpRequestParserTest {
         parameters.add("X-GP-URL-HOST", "my://bags");
         parameters.add("X-GP-URL-PORT", "-8020");
         parameters.add("X-GP-ATTRS", "-1");
+        parameters.add("X-GP-PXF-API-VERSION", "16");
         parameters.add("X-GP-OPTIONS-FRAGMENTER", "we");
         parameters.add("X-GP-OPTIONS-ACCESSOR", "are");
         parameters.add("X-GP-OPTIONS-RESOLVER", "packed");
@@ -85,7 +92,8 @@ public class HttpRequestParserTest {
         parameters.add("X-GP-DATA-ENCODING", "UTF8");
         parameters.add("X-GP-DATABASE-ENCODING", "UTF8");
 
-        parser = new HttpRequestParser(mockPluginConf, new CharsetUtils());
+        parser = new HttpRequestParser(mockPluginConf, new CharsetUtils(), mockServerProperties);
+
     }
 
     @AfterEach
@@ -621,6 +629,22 @@ public class HttpRequestParserTest {
         e = assertThrows(IllegalArgumentException.class,
                 () -> parser.parseRequest(parameters, RequestType.WRITE_BRIDGE));
         assertEquals("Property RESOLVER has no value in the current request", e.getMessage());
+    }
+
+    @Test
+    public void testMisingPxfApiVersion() {
+        parameters.remove("X-GP-PXF-API-VERSION");
+        Exception e = assertThrows(IllegalArgumentException.class,
+                () -> parser.parseRequest(parameters, RequestType.READ_BRIDGE));
+        assertEquals("Property PXF-API-VERSION has no value in the current request. Ensure PXF extension has been updated to the latest version.", e.getMessage());
+    }
+
+    @Test
+    public void testDifferentPxfApiVersions() {
+        parameters.set("X-GP-PXF-API-VERSION", "15");
+        Exception e = assertThrows(IllegalArgumentException.class,
+                () -> parser.parseRequest(parameters, RequestType.READ_BRIDGE));
+        assertEquals("Incompatible request from PXF extension; please update your PXF extension.", e.getMessage());
     }
 
     public static class TestHandler implements ProtocolHandler {
