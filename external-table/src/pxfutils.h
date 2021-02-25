@@ -28,7 +28,7 @@ const int  get_pxf_port(void);
 /* Returns the 128-bit trace id to be propagated
  * to the PXF Service
  */
-char	   *GetTraceId(char* xid, int slideId, Oid relnamespace, const char* relname, char* user);
+char	   *GetTraceId(char* xid, char* filter, Oid relnamespace, const char* relname, char* user);
 
 /* Returns the 64-bit span id to be propagated
  * to the PXF Service

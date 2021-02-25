@@ -151,6 +151,7 @@ build_http_headers(PxfInputData *input)
 	churl_headers_append(headers, "X-GP-URL-HOST", gphduri->host);
 	churl_headers_append(headers, "X-GP-URL-PORT", gphduri->port);
 	churl_headers_append(headers, "X-GP-DATA-DIR", gphduri->data);
+	churl_headers_append(headers, "X-GP-TABLE-NAME", relname);
 
 	/* encoding options */
 	churl_headers_append(headers, "X-GP-DATA-ENCODING", data_encoding);
@@ -171,8 +172,8 @@ build_http_headers(PxfInputData *input)
 	else
 		churl_headers_append(headers, "X-GP-HAS-FILTER", "0");
 
-	// Add trace id = xid : slice id : namespace_oid : tablename : user
-	traceId = GetTraceId(ev.GP_XID, currentSliceId, relnamespace, relname, ev.GP_USER);
+	// Add trace id = xid : filterstr : namespace_oid : tablename : user
+	traceId = GetTraceId(ev.GP_XID, filterstr, relnamespace, relname, ev.GP_USER);
 	churl_headers_append(headers, "X-B3-TraceId", traceId);
 
 	// Add span id = traceId : segId

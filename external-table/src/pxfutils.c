@@ -124,12 +124,12 @@ get_pxf_port(void)
  * to the PXF Service
  */
 char *
-GetTraceId(char* xid, int slideId, Oid relnamespace, const char* relname, char* user)
+GetTraceId(char* xid, char* filter, Oid relnamespace, const char* relname, char* user)
 {
 	char	   *traceId,
 			   *md5Hash;
 
-	traceId = psprintf("%s:%d:%u:%s:%s", xid, slideId, relnamespace, relname, user);
+	traceId = psprintf("%s:%s:%u:%s:%s", xid, filter, relnamespace, relname, user);
 	elog(DEBUG3, "GetTraceId: generated traceId %s", traceId);
 
 	md5Hash = palloc0(33);
