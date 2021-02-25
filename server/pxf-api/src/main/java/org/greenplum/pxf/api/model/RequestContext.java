@@ -258,6 +258,11 @@ public class RequestContext {
     private int segmentId;
 
     /**
+     * The name of the origin Greenplum table name.
+     */
+    private String tableName;
+
+    /**
      * The transaction ID for the current Greenplum query.
      */
     private String transactionId;

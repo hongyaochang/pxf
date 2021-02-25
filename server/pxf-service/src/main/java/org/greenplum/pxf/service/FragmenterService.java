@@ -119,10 +119,16 @@ public class FragmenterService {
 
                         int numberOfFragments = fragmentList.size();
                         long elapsedMillis = Duration.between(startTime, Instant.now()).toMillis();
-                        LOG.info("{} returns {} fragment{} for path {} in {} ms [fragmenter {} profile {} predicate is{} available]",
-                                context.getId(), numberOfFragments, numberOfFragments == 1 ? "" : "s",
-                                context.getDataSource(), elapsedMillis, context.getFragmenter(),
-                                context.getProfile(), context.hasFilter() ? "" : " not");
+                        LOG.info("{} returns {} fragment{} for table '{}' resource {} in {} ms [fragmenter {} profile {} predicate is{} available]",
+                                context.getId(),
+                                numberOfFragments,
+                                numberOfFragments == 1 ? "" : "s",
+                                context.getTableName(),
+                                context.getDataSource(),
+                                elapsedMillis,
+                                context.getFragmenter(),
+                                context.getProfile(),
+                                context.hasFilter() ? "" : " not");
 
                         return fragmentList;
                     });
