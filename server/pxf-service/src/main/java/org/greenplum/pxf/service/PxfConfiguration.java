@@ -25,7 +25,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.util.ArrayList;
 
 /**
  * Configures the {@link AsyncTaskExecutor} for tasks that will stream data to
@@ -125,25 +124,16 @@ public class PxfConfiguration implements WebMvcConfigurer {
                 // if request is not from PXF client, apply the same tags wth the value "unknown"
                 // because the Prometheus Metrics Registry requires a metric to have a consistent set of tags
                 String defaultServer = StringUtils.isNotBlank(request.getHeader("X-GP-USER")) ? "default" : UNKNOWN_VALUE;
-                Tags tags = Tags.empty();
-                tags = addTag("user", request.getHeader("X-GP-USER"), tags, UNKNOWN_VALUE);
-                tags = addTag("segment", request.getHeader("X-GP-SEGMENT-ID"), tags, UNKNOWN_VALUE);
-                tags = addTag("profile", request.getHeader("X-GP-OPTIONS-PROFILE"), tags, UNKNOWN_VALUE);
-                tags = addTag("server", request.getHeader("X-GP-OPTIONS-SERVER"), tags, defaultServer);
-                return tags;
+                return Tags.empty()
+                        .and("user", StringUtils.defaultIfBlank(request.getHeader("X-GP-USER"), UNKNOWN_VALUE))
+                        .and("segment", StringUtils.defaultIfBlank(request.getHeader("X-GP-SEGMENT-ID"), UNKNOWN_VALUE))
+                        .and("profile", StringUtils.defaultIfBlank(request.getHeader("X-GP-OPTIONS-PROFILE"), UNKNOWN_VALUE))
+                        .and("server", StringUtils.defaultIfBlank(request.getHeader("X-GP-OPTIONS-SERVER"), defaultServer));
             }
 
             @Override
             public Iterable<Tag> getLongRequestTags(HttpServletRequest request, Object handler) {
-                return new ArrayList<>();
-            }
-
-            private Tags addTag(String tag, String value, Tags tags, String defaultValue) {
-                value = StringUtils.defaultIfBlank(value, defaultValue);
-                if (StringUtils.isNotBlank(value)) {
-                    tags = tags.and(tag, value);
-                }
-                return tags;
+                return Tags.empty();
             }
         };
     }
