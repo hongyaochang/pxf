@@ -106,9 +106,12 @@ public class PxfMetricsIT {
                 .jsonPath("$.availableTags[?(@.tag == 'profile')].values[0]").isEqualTo("profile:test")
                 .jsonPath("$.availableTags[?(@.tag == 'server')].values[0]").isEqualTo("speedy");
 
+        // hit the actuator health endpoint
+        client.get().uri("/actuator/health")
+                .exchange().expectStatus().isOk().expectBody()
+                .json("{\"status\":\"UP\",\"groups\":[\"liveness\",\"readiness\"]}");
+
         // assert prometheus endpoint reflects the metric as well
-        // this test will work, somehow, however the actual Prometheus endpoint in standalone Boot app will only
-        // have a metric for the first URL hit, if custom tags are used: https://github.com/micrometer-metrics/micrometer/issues/2399
         String prometheusResponse = client.get().uri("/actuator/prometheus")
                 .exchange()
                 .expectStatus().isOk()
@@ -116,6 +119,7 @@ public class PxfMetricsIT {
         assertNotNull(prometheusResponse);
         assertTrue(prometheusResponse.contains("http_server_requests_seconds_count{application=\"pxf-service\",exception=\"None\",method=\"GET\",outcome=\"SUCCESS\",profile=\"profile:test\",segment=\"77\",server=\"speedy\",status=\"200\",uri=\"/pxf/read\",user=\"reader\",} 1.0\n"));
         assertTrue(prometheusResponse.contains("http_server_requests_seconds_count{application=\"pxf-service\",exception=\"None\",method=\"POST\",outcome=\"SUCCESS\",profile=\"profile:test\",segment=\"77\",server=\"speedy\",status=\"200\",uri=\"/pxf/write\",user=\"writer\",} 1.0\n"));
+        assertTrue(prometheusResponse.contains("http_server_requests_seconds_count{application=\"pxf-service\",exception=\"None\",method=\"GET\",outcome=\"SUCCESS\",profile=\"unknown\",segment=\"unknown\",server=\"unknown\",status=\"200\",uri=\"/actuator/health\",user=\"unknown\",} 1.0\n"));
     }
 
     private void mockServices() throws IOException {

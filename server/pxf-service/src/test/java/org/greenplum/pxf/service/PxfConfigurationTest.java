@@ -29,7 +29,7 @@ class PxfConfigurationTest {
 
     @BeforeEach
     public void setup() {
-        configuration = new PxfConfiguration(null, true);
+        configuration = new PxfConfiguration(null);
         contributor = configuration.webMvcTagsContributor();
         mockRequest = mock(HttpServletRequest.class, withSettings().lenient());
     }
@@ -75,24 +75,17 @@ class PxfConfigurationTest {
     }
 
     @Test
-    public void testPxfWebMvcTagsContributor_pxfEndpoint_tagsDisabled() {
-        configuration = new PxfConfiguration(null, false);
-        contributor = configuration.webMvcTagsContributor();
-        when(mockRequest.getHeader("X-GP-USER")).thenReturn("Alex");
-        when(mockRequest.getHeader("X-GP-SEGMENT-ID")).thenReturn("5");
-        when(mockRequest.getHeader("X-GP-OPTIONS-PROFILE")).thenReturn("test:text");
-        when(mockRequest.getHeader("X-GP-OPTIONS-SERVER")).thenReturn(null);
-
-        assertFalse(contributor.getTags(mockRequest, null, null, null).iterator().hasNext());
-        assertFalse(contributor.getLongRequestTags(mockRequest, null).iterator().hasNext());
-    }
-
-    @Test
     public void testPxfWebMvcTagsContributor_nonPxfEndpoint() {
-        when(mockRequest.getHeader("X-GP-USER")).thenReturn(null);
+        List<Tag> expectedTags = Tags.of("user", "unknown")
+                .and("segment", "unknown")
+                .and("profile", "unknown")
+                .and("server", "unknown")
+                .stream().collect(Collectors.toList());
 
         Iterable<Tag> tagsIterable = contributor.getTags(mockRequest, null, null, null);
-        assertFalse(tagsIterable.iterator().hasNext());
+        List<Tag> tags = StreamSupport.stream(tagsIterable.spliterator(), false).collect(Collectors.toList());
+
+        assertTrue(CollectionUtils.isEqualCollection(expectedTags, tags));
         assertFalse(contributor.getLongRequestTags(mockRequest, null).iterator().hasNext());
     }
 

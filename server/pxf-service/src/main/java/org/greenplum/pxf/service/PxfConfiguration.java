@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.metrics.web.servlet.WebMvcTagsContributor;
 import org.springframework.boot.autoconfigure.task.TaskExecutionProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -43,7 +42,6 @@ public class PxfConfiguration implements WebMvcConfigurer {
     private static final Logger LOG = LoggerFactory.getLogger(PxfConfiguration.class);
 
     private final ListableBeanFactory beanFactory;
-    private final boolean customTagsEnabled;
 
     /**
      * Constructs a PXF Configuration object with the provided
@@ -51,10 +49,8 @@ public class PxfConfiguration implements WebMvcConfigurer {
      *
      * @param beanFactory the beanFactory
      */
-    public PxfConfiguration(ListableBeanFactory beanFactory,
-                            @Value("${pxf.metrics.mvc.tags.enabled}") boolean customTagsEnabled) {
+    public PxfConfiguration(ListableBeanFactory beanFactory) {
         this.beanFactory = beanFactory;
-        this.customTagsEnabled = customTagsEnabled;
     }
 
     /**
@@ -120,16 +116,20 @@ public class PxfConfiguration implements WebMvcConfigurer {
     @Bean
     public WebMvcTagsContributor webMvcTagsContributor() {
         return new WebMvcTagsContributor() {
+
+            private static final String UNKNOWN_VALUE = "unknown";
+
             @Override
             public Iterable<Tag> getTags(HttpServletRequest request, HttpServletResponse response, Object handler, Throwable exception) {
+                // default server tag value to "default" if the request is from a PXF Client
+                // if request is not from PXF client, apply the same tags wth the value "unknown"
+                // because the Prometheus Metrics Registry requires a metric to have a consistent set of tags
+                String defaultServer = StringUtils.isNotBlank(request.getHeader("X-GP-USER")) ? "default" : UNKNOWN_VALUE;
                 Tags tags = Tags.empty();
-                // add tags only if enabled and the request is for PXF service endpoints (not actuator ones)
-                if (customTagsEnabled && StringUtils.isNotBlank(request.getHeader("X-GP-USER"))) {
-                    tags = tags.and("user", request.getHeader("X-GP-USER"));
-                    tags = addTag("segment", request.getHeader("X-GP-SEGMENT-ID"), tags, null);
-                    tags = addTag("profile", request.getHeader("X-GP-OPTIONS-PROFILE"), tags, null);
-                    tags = addTag("server", request.getHeader("X-GP-OPTIONS-SERVER"), tags, "default");
-                }
+                tags = addTag("user", request.getHeader("X-GP-USER"), tags, UNKNOWN_VALUE);
+                tags = addTag("segment", request.getHeader("X-GP-SEGMENT-ID"), tags, UNKNOWN_VALUE);
+                tags = addTag("profile", request.getHeader("X-GP-OPTIONS-PROFILE"), tags, UNKNOWN_VALUE);
+                tags = addTag("server", request.getHeader("X-GP-OPTIONS-SERVER"), tags, defaultServer);
                 return tags;
             }
 
