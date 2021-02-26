@@ -31,6 +31,7 @@
 #endif
 #include "cdb/cdbvars.h"
 #include "commands/defrem.h"
+#include "catalog/pg_namespace.h"
 #include "utils/builtins.h"
 #include "utils/formatting.h"
 #include "utils/timestamp.h"
@@ -44,8 +45,9 @@ static void AddProjectionDescHttpHeader(CHURL_HEADERS headers, List *retrieved_a
 static void AddProjectionIndexHeader(CHURL_HEADERS headers, int attno, char *long_number);
 static char *NormalizeKeyName(const char *key);
 static char *TypeOidGetTypename(Oid typid);
-static char *GetTraceId(char* xid, char* filter, Oid relnamespace, const char* relname, char* user);
+static char *GetTraceId(char* xid, char* filter, char* relnamespace, const char* relname, char* user);
 static char *GetSpanId(char* traceId, char* segmentId);
+static char *GetNamespaceName(Oid nsp_oid);
 
 /*
  * Add key/value pairs to connection header.
@@ -64,14 +66,14 @@ BuildHttpHeaders(CHURL_HEADERS headers,
 	char		 long_number[sizeof(int32) * 8];
 	char		*traceId;
 	const char	*relname = NULL;
-	Oid			 relnamespace = InvalidOid;
+	char		*relnamespace = NULL;
 
 	if (relation != NULL)
 	{
 		/* Record fields - name and type of each field */
 		AddTupleDescriptionToHttpHeader(headers, relation);
 		relname = RelationGetRelationName(relation);
-		relnamespace = RelationGetNamespace(relation);
+		relnamespace = GetNamespaceName(RelationGetNamespace(relation));
 	}
 
 	if (retrieved_attrs != NULL)
@@ -118,6 +120,7 @@ BuildHttpHeaders(CHURL_HEADERS headers,
 	churl_headers_append(headers, "X-GP-DATA-DIR", options->resource);
 	churl_headers_append(headers, "X-GP-OPTIONS-SERVER", options->server);
 	churl_headers_append(headers, "X-GP-TABLE-NAME", relname);
+	churl_headers_append(headers, "X-GP-SCHEMA-NAME", relnamespace);
 
 	/* encoding options */
 	churl_headers_append(headers, "X-GP-DATA-ENCODING", options->data_encoding);
@@ -391,12 +394,12 @@ TypeOidGetTypename(Oid typid)
  * to the PXF Service
  */
 static char *
-GetTraceId(char* xid, char* filter, Oid relnamespace, const char* relname, char* user)
+GetTraceId(char* xid, char* filter, char* relnamespace, const char* relname, char* user)
 {
 	char	   *traceId,
 			*md5Hash;
 
-	traceId = psprintf("%s:%s:%u:%s:%s", xid, filter, relnamespace, relname, user);
+	traceId = psprintf("%s:%s:%s:%s:%s", xid, filter, relnamespace, relname, user);
 	elog(DEBUG3, "GetTraceId: generated traceId %s", traceId);
 
 	md5Hash = palloc0(33);
@@ -439,4 +442,26 @@ GetSpanId(char* traceId, char* segmentId)
 	pfree(md5Hash);
 
 	return res;
+}
+
+/* Returns the namespace (schema) name for a given namespace oid */
+static char *
+GetNamespaceName(Oid nsp_oid)
+{
+	HeapTuple	tuple;
+	Datum		nspnameDatum;
+	bool		isNull;
+
+	tuple = SearchSysCache1(NAMESPACEOID, ObjectIdGetDatum(nsp_oid));
+	if (!HeapTupleIsValid(tuple))
+		ereport(ERROR,
+				(errcode(ERRCODE_UNDEFINED_SCHEMA),
+						errmsg("schema with OID %u does not exist", nsp_oid)));
+
+	nspnameDatum = SysCacheGetAttr(NAMESPACEOID, tuple, Anum_pg_namespace_nspname,
+								   &isNull);
+
+	ReleaseSysCache(tuple);
+
+	return DatumGetCString(nspnameDatum);
 }

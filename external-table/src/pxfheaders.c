@@ -59,7 +59,7 @@ build_http_headers(PxfInputData *input)
 	char           long_number[sizeof(int32) * 8];
 	ProjectionInfo *proj_info = input->proj_info;
 	const char	   *relname;
-	Oid				relnamespace = InvalidOid;
+	char		   *relnamespace = NULL;
 	char		   *traceId;
 
 	relname = gphduri->data;
@@ -103,7 +103,7 @@ build_http_headers(PxfInputData *input)
 		add_tuple_desc_httpheader(headers, rel);
 
 		relname = RelationGetRelationName(rel);
-		relnamespace = RelationGetNamespace(rel);
+		relnamespace = GetNamespaceName(RelationGetNamespace(rel));
 	}
 
 	if (proj_info != NULL)
@@ -152,6 +152,7 @@ build_http_headers(PxfInputData *input)
 	churl_headers_append(headers, "X-GP-URL-PORT", gphduri->port);
 	churl_headers_append(headers, "X-GP-DATA-DIR", gphduri->data);
 	churl_headers_append(headers, "X-GP-TABLE-NAME", relname);
+	churl_headers_append(headers, "X-GP-SCHEMA-NAME", relnamespace);
 
 	/* encoding options */
 	churl_headers_append(headers, "X-GP-DATA-ENCODING", data_encoding);

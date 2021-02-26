@@ -4,6 +4,7 @@
 #include "access/htup_details.h"
 #include "catalog/pg_type.h"
 #endif
+#include "catalog/pg_namespace.h"
 #include "libpq/md5.h"
 #include "utils/formatting.h"
 #include "utils/syscache.h"
@@ -124,12 +125,12 @@ get_pxf_port(void)
  * to the PXF Service
  */
 char *
-GetTraceId(char* xid, char* filter, Oid relnamespace, const char* relname, char* user)
+GetTraceId(char* xid, char* filter, char* relnamespace, const char* relname, char* user)
 {
 	char	   *traceId,
 			   *md5Hash;
 
-	traceId = psprintf("%s:%s:%u:%s:%s", xid, filter, relnamespace, relname, user);
+	traceId = psprintf("%s:%s:%s:%s:%s", xid, filter, relnamespace, relname, user);
 	elog(DEBUG3, "GetTraceId: generated traceId %s", traceId);
 
 	md5Hash = palloc0(33);
@@ -172,4 +173,26 @@ GetSpanId(char* traceId, char* segmentId)
 	pfree(md5Hash);
 
 	return res;
+}
+
+/* Returns the namespace (schema) name for a given namespace oid */
+char *
+GetNamespaceName(Oid nsp_oid)
+{
+	HeapTuple	tuple;
+	Datum		nspnameDatum;
+	bool		isNull;
+
+	tuple = SearchSysCache1(NAMESPACEOID, ObjectIdGetDatum(nsp_oid));
+	if (!HeapTupleIsValid(tuple))
+		ereport(ERROR,
+				(errcode(ERRCODE_UNDEFINED_SCHEMA),
+						errmsg("schema with OID %u does not exist", nsp_oid)));
+
+	nspnameDatum = SysCacheGetAttr(NAMESPACEOID, tuple, Anum_pg_namespace_nspname,
+								   &isNull);
+
+	ReleaseSysCache(tuple);
+
+	return DatumGetCString(nspnameDatum);
 }
