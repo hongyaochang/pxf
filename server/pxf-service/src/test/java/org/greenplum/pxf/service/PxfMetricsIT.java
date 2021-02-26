@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.stubbing.Answer;
+import org.springframework.boot.test.autoconfigure.actuate.metrics.AutoConfigureMetrics;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.web.server.LocalServerPort;
@@ -18,13 +19,17 @@ import org.springframework.util.MultiValueMap;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = PxfServiceApplication.class)
-@TestPropertySource(properties = {"pxf.logdir=/tmp"})
+@TestPropertySource(properties = {"pxf.logdir=/tmp", "pxf.metrics.mvc.tags.enabled=true"})
+@AutoConfigureMetrics
 public class PxfMetricsIT {
 
     @LocalServerPort
@@ -51,7 +56,7 @@ public class PxfMetricsIT {
 
     @Test
     public void test_HttpServerRequests_Metric() throws Exception {
-        mockReadService();
+        mockServices();
         // call PXF read API
         client.get().uri("/pxf/read")
                 .header("X-GP-USER", "reader")
@@ -59,15 +64,16 @@ public class PxfMetricsIT {
                 .header("X-GP-OPTIONS-PROFILE", "profile:test")
                 .header("X-GP-OPTIONS-SERVER", "speedy")
                 .exchange().expectStatus().isOk()
-                .expectBody().toString().equals("Hello from read!");
+                .expectBody(String.class).isEqualTo("Hello from read!");
 
         // assert metric got reported with proper tags
         client.get().uri("/actuator/metrics/http.server.requests?tag=uri:/pxf/read")
                 .exchange().expectStatus().isOk().expectBody()
                 .jsonPath("$.measurements[?(@.statistic == 'COUNT')].value").isEqualTo(1.0)
+                .jsonPath("$.measurements[?(@.statistic == 'TOTAL_TIME' && @.value < 0.5)]").doesNotHaveJsonPath()
                 .jsonPath("$.availableTags[?(@.tag == 'application')].values[0]").isEqualTo("pxf-service")
                 .jsonPath("$.availableTags[?(@.tag == 'user')].values[0]").isEqualTo("reader")
-                .jsonPath("$.availableTags[?(@.tag == 'segmentID')].values[0]").isEqualTo("77")
+                .jsonPath("$.availableTags[?(@.tag == 'segment')].values[0]").isEqualTo("77")
                 .jsonPath("$.availableTags[?(@.tag == 'profile')].values[0]").isEqualTo("profile:test")
                 .jsonPath("$.availableTags[?(@.tag == 'server')].values[0]").isEqualTo("speedy");
 
@@ -78,7 +84,7 @@ public class PxfMetricsIT {
                 .header("X-GP-OPTIONS-PROFILE", "profile:test")
                 .header("X-GP-OPTIONS-SERVER", "speedy")
                 .exchange().expectStatus().isOk()
-                .expectBody().toString().equals("Hello from write!");
+                .expectBody(String.class).isEqualTo("Hello from write!");
 
         // assert metric got reported with proper tags
         client.get().uri("/actuator/metrics/http.server.requests?tag=uri:/pxf/write")
@@ -86,12 +92,12 @@ public class PxfMetricsIT {
                 .jsonPath("$.measurements[?(@.statistic == 'COUNT')].value").isEqualTo(1.0)
                 .jsonPath("$.availableTags[?(@.tag == 'application')].values[0]").isEqualTo("pxf-service")
                 .jsonPath("$.availableTags[?(@.tag == 'user')].values[0]").isEqualTo("writer")
-                .jsonPath("$.availableTags[?(@.tag == 'segmentID')].values[0]").isEqualTo("77")
+                .jsonPath("$.availableTags[?(@.tag == 'segment')].values[0]").isEqualTo("77")
                 .jsonPath("$.availableTags[?(@.tag == 'profile')].values[0]").isEqualTo("profile:test")
                 .jsonPath("$.availableTags[?(@.tag == 'server')].values[0]").isEqualTo("speedy");
 
         // assert metric for segment access is aggregate
-        client.get().uri("/actuator/metrics/http.server.requests?tag=segmentID:77")
+        client.get().uri("/actuator/metrics/http.server.requests?tag=segment:77")
                 .exchange().expectStatus().isOk().expectBody()
                 .jsonPath("$.measurements[?(@.statistic == 'COUNT')].value").isEqualTo(2.0)
                 .jsonPath("$.availableTags[?(@.tag == 'application')].values[0]").isEqualTo("pxf-service")
@@ -101,23 +107,31 @@ public class PxfMetricsIT {
                 .jsonPath("$.availableTags[?(@.tag == 'server')].values[0]").isEqualTo("speedy");
 
         // assert prometheus endpoint reflects the metric as well
-        // TODO somehow proetheus endpoint is not accessible from the test
-        client.get().uri("/actuator/prometheus")
-                .exchange().expectStatus().isNotFound();
-
-//        client.get().uri("/actuator/prometheus")
-//                .exchange()
-//                .expectStatus().isOk()
-//                .expectBody().toString().equals("foo");
+        // this test will work, somehow, however the actual Prometheus endpoint in standalone Boot app will only
+        // have a metric for the first URL hit, if custom tags are used: https://github.com/micrometer-metrics/micrometer/issues/2399
+        String prometheusResponse = client.get().uri("/actuator/prometheus")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class).returnResult().getResponseBody();
+        assertNotNull(prometheusResponse);
+        assertTrue(prometheusResponse.contains("http_server_requests_seconds_count{application=\"pxf-service\",exception=\"None\",method=\"GET\",outcome=\"SUCCESS\",profile=\"profile:test\",segment=\"77\",server=\"speedy\",status=\"200\",uri=\"/pxf/read\",user=\"reader\",} 1.0\n"));
+        assertTrue(prometheusResponse.contains("http_server_requests_seconds_count{application=\"pxf-service\",exception=\"None\",method=\"POST\",outcome=\"SUCCESS\",profile=\"profile:test\",segment=\"77\",server=\"speedy\",status=\"200\",uri=\"/pxf/write\",user=\"writer\",} 1.0\n"));
     }
 
-    private void mockReadService() throws IOException {
+    private void mockServices() throws IOException {
+        // mock ReadService
         when(mockParser.parseRequest(any(), eq(RequestContext.RequestType.READ_BRIDGE))).thenReturn(mockContext);
-        Answer<Void> ans = invocation -> {
+        Answer<Void> readAnswer = invocation -> {
+            // sleep to simulate time it takes to execute, check that reported metric takes into account async time
+            Thread.sleep(500);
             invocation.getArgument(1, OutputStream.class).write("Hello from read!".getBytes(Charsets.UTF_8));
             return null;
         };
-        doAnswer(ans).when(readService).readData(any(), any());
+        doAnswer(readAnswer).when(readService).readData(any(), any());
+
+        // mock WriteService
+        when(mockParser.parseRequest(any(), eq(RequestContext.RequestType.WRITE_BRIDGE))).thenReturn(mockContext);
+        when(mockWriteService.writeData(same(mockContext), any())).thenReturn("Hello from write!");
     }
 
 }

@@ -8,9 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.actuate.metrics.web.servlet.DefaultWebMvcTagsProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.metrics.web.servlet.WebMvcTagsContributor;
-import org.springframework.boot.actuate.metrics.web.servlet.WebMvcTagsProvider;
 import org.springframework.boot.autoconfigure.task.TaskExecutionProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.task.TaskExecutorBuilder;
@@ -37,14 +36,15 @@ import java.util.ArrayList;
 @EnableConfigurationProperties(PxfServerProperties.class)
 public class PxfConfiguration implements WebMvcConfigurer {
 
-    private static final Logger LOG = LoggerFactory.getLogger(PxfConfiguration.class);
-
     /**
      * Bean name of PXF's {@link TaskExecutor}.
      */
     public static final String PXF_RESPONSE_STREAM_TASK_EXECUTOR = "pxfResponseStreamTaskExecutor";
+    private static final Logger LOG = LoggerFactory.getLogger(PxfConfiguration.class);
+    private static final Tags EMPTY_TAGS = Tags.empty();
 
     private final ListableBeanFactory beanFactory;
+    private final boolean customTagsEnabled;
 
     /**
      * Constructs a PXF Configuration object with the provided
@@ -52,8 +52,10 @@ public class PxfConfiguration implements WebMvcConfigurer {
      *
      * @param beanFactory the beanFactory
      */
-    public PxfConfiguration(ListableBeanFactory beanFactory) {
+    public PxfConfiguration(ListableBeanFactory beanFactory,
+                            @Value("${pxf.metrics.mvc.tags.enabled}") boolean customTagsEnabled) {
         this.beanFactory = beanFactory;
+        this.customTagsEnabled = customTagsEnabled;
     }
 
     /**
@@ -121,15 +123,15 @@ public class PxfConfiguration implements WebMvcConfigurer {
         return new WebMvcTagsContributor() {
             @Override
             public Iterable<Tag> getTags(HttpServletRequest request, HttpServletResponse response, Object handler, Throwable exception) {
-                Tags tags = Tags.empty();
-                // add tags only if the request is for PXF service endpoints (not actuator ones)
-                String user = request.getHeader("X-GP-USER");
-                if (StringUtils.isNotBlank(user)) {
-                    tags = tags.and("user", user);
-                    tags = addTag("segmentID", request.getHeader("X-GP-SEGMENT-ID"), tags, null);
-                    tags = addTag("profile", request.getHeader("X-GP-OPTIONS-PROFILE"), tags, null);
-                    tags = addTag("server", request.getHeader("X-GP-OPTIONS-SERVER"), tags, "default");
+                // add tags only if enabled and the request is for PXF service endpoints (not actuator ones)
+                if (!customTagsEnabled || StringUtils.isBlank(request.getHeader("X-GP-USER"))) {
+                    return EMPTY_TAGS;
                 }
+                Tags tags = Tags.empty();
+                tags = tags.and("user", request.getHeader("X-GP-USER"));
+                tags = addTag("segment", request.getHeader("X-GP-SEGMENT-ID"), tags, null);
+                tags = addTag("profile", request.getHeader("X-GP-OPTIONS-PROFILE"), tags, null);
+                tags = addTag("server", request.getHeader("X-GP-OPTIONS-SERVER"), tags, "default");
                 return tags;
             }
 

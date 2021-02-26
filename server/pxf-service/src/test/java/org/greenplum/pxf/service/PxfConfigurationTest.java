@@ -28,8 +28,8 @@ class PxfConfigurationTest {
     private HttpServletRequest mockRequest;
 
     @BeforeEach
-    public void setup(){
-        configuration = new PxfConfiguration(null);
+    public void setup() {
+        configuration = new PxfConfiguration(null, true);
         contributor = configuration.webMvcTagsContributor();
         mockRequest = mock(HttpServletRequest.class, withSettings().lenient());
     }
@@ -42,9 +42,9 @@ class PxfConfigurationTest {
         when(mockRequest.getHeader("X-GP-OPTIONS-SERVER")).thenReturn("test_server");
 
         List<Tag> expectedTags = Tags.of("user", "Alex")
-                                .and("segmentID", "5")
-                                .and("profile", "test:text")
-                                .and("server", "test_server")
+                .and("segment", "5")
+                .and("profile", "test:text")
+                .and("server", "test_server")
                 .stream().collect(Collectors.toList());
 
         Iterable<Tag> tagsIterable = contributor.getTags(mockRequest, null, null, null);
@@ -62,7 +62,7 @@ class PxfConfigurationTest {
         when(mockRequest.getHeader("X-GP-OPTIONS-SERVER")).thenReturn(null);
 
         List<Tag> expectedTags = Tags.of("user", "Alex")
-                .and("segmentID", "5")
+                .and("segment", "5")
                 .and("profile", "test:text")
                 .and("server", "default")
                 .stream().collect(Collectors.toList());
@@ -71,6 +71,19 @@ class PxfConfigurationTest {
         List<Tag> tags = StreamSupport.stream(tagsIterable.spliterator(), false).collect(Collectors.toList());
 
         assertTrue(CollectionUtils.isEqualCollection(expectedTags, tags));
+        assertFalse(contributor.getLongRequestTags(mockRequest, null).iterator().hasNext());
+    }
+
+    @Test
+    public void testPxfWebMvcTagsContributor_pxfEndpoint_tagsDisabled() {
+        configuration = new PxfConfiguration(null, false);
+        contributor = configuration.webMvcTagsContributor();
+        when(mockRequest.getHeader("X-GP-USER")).thenReturn("Alex");
+        when(mockRequest.getHeader("X-GP-SEGMENT-ID")).thenReturn("5");
+        when(mockRequest.getHeader("X-GP-OPTIONS-PROFILE")).thenReturn("test:text");
+        when(mockRequest.getHeader("X-GP-OPTIONS-SERVER")).thenReturn(null);
+
+        assertFalse(contributor.getTags(mockRequest, null, null, null).iterator().hasNext());
         assertFalse(contributor.getLongRequestTags(mockRequest, null).iterator().hasNext());
     }
 
