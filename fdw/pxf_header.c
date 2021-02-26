@@ -141,7 +141,7 @@ BuildHttpHeaders(CHURL_HEADERS headers,
 	else
 		churl_headers_append(headers, "X-GP-HAS-FILTER", "0");
 
-	// Add trace id = xid : filterstr : namespace_oid : tablename : user
+	// Add trace id = xid : filterstr : schema : tablename : user
 	traceId = GetTraceId(ev.GP_XID, filter_string, relnamespace, relname, ev.GP_USER);
 	churl_headers_append(headers, "X-B3-TraceId", traceId);
 
