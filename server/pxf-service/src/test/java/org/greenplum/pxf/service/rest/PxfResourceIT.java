@@ -38,7 +38,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest({PxfResource.class, PxfLegacyResource.class})
-@TestPropertySource(properties = {"pxf.logdir=/tmp"})
 public class PxfResourceIT {
 
     @Autowired

@@ -28,7 +28,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, classes = PxfServiceApplication.class)
-@TestPropertySource(properties = {"pxf.logdir=/tmp", "pxf.metrics.mvc.tags.enabled=true"})
+@TestPropertySource(properties = {"pxf.metrics.mvc.tags.enabled=true"})
 @AutoConfigureMetrics
 public class PxfMetricsIT {
 

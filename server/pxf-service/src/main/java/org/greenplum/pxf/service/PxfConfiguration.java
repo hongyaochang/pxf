@@ -41,7 +41,6 @@ public class PxfConfiguration implements WebMvcConfigurer {
      */
     public static final String PXF_RESPONSE_STREAM_TASK_EXECUTOR = "pxfResponseStreamTaskExecutor";
     private static final Logger LOG = LoggerFactory.getLogger(PxfConfiguration.class);
-    private static final Tags EMPTY_TAGS = Tags.empty();
 
     private final ListableBeanFactory beanFactory;
     private final boolean customTagsEnabled;
@@ -123,15 +122,14 @@ public class PxfConfiguration implements WebMvcConfigurer {
         return new WebMvcTagsContributor() {
             @Override
             public Iterable<Tag> getTags(HttpServletRequest request, HttpServletResponse response, Object handler, Throwable exception) {
-                // add tags only if enabled and the request is for PXF service endpoints (not actuator ones)
-                if (!customTagsEnabled || StringUtils.isBlank(request.getHeader("X-GP-USER"))) {
-                    return EMPTY_TAGS;
-                }
                 Tags tags = Tags.empty();
-                tags = tags.and("user", request.getHeader("X-GP-USER"));
-                tags = addTag("segment", request.getHeader("X-GP-SEGMENT-ID"), tags, null);
-                tags = addTag("profile", request.getHeader("X-GP-OPTIONS-PROFILE"), tags, null);
-                tags = addTag("server", request.getHeader("X-GP-OPTIONS-SERVER"), tags, "default");
+                // add tags only if enabled and the request is for PXF service endpoints (not actuator ones)
+                if (customTagsEnabled && StringUtils.isNotBlank(request.getHeader("X-GP-USER"))) {
+                    tags = tags.and("user", request.getHeader("X-GP-USER"));
+                    tags = addTag("segment", request.getHeader("X-GP-SEGMENT-ID"), tags, null);
+                    tags = addTag("profile", request.getHeader("X-GP-OPTIONS-PROFILE"), tags, null);
+                    tags = addTag("server", request.getHeader("X-GP-OPTIONS-SERVER"), tags, "default");
+                }
                 return tags;
             }
 
