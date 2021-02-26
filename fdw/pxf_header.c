@@ -117,6 +117,7 @@ BuildHttpHeaders(CHURL_HEADERS headers,
 	churl_headers_append(headers, "X-GP-FORMAT", "TEXT");
 	churl_headers_append(headers, "X-GP-DATA-DIR", options->resource);
 	churl_headers_append(headers, "X-GP-OPTIONS-SERVER", options->server);
+	churl_headers_append(headers, "X-GP-TABLE-NAME", relname);
 
 	/* encoding options */
 	churl_headers_append(headers, "X-GP-DATA-ENCODING", options->data_encoding);
